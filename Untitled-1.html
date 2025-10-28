@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <style>
+       body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(90deg,  #ffd900, #000000, black);
+    margin: 0;
+    height: 100vh;
+    position: relative; /* necesario para posicionamiento absoluto */
+}
+
+     .login-wrapper {
+    display: flex;
+    align-items: center;
+}
+.login-image {
+    position: absolute;
+    top: 50%;           /* centro vertical */
+    left: 30%;          /* centro horizontal */
+    transform: translate(-50%, -50%); /* ajuste exacto */
+    width: 300px;       /* tamaño de la imagen */
+    height: 300px;
+    border-radius: 50%; /* hace la imagen circular */
+    object-fit: cover;
+    z-index: 1;         /* se asegura que esté detrás del login si quieres */
+}
+@keyframes slideIn {
+    0% {
+        transform: translateX(1000px) translateY(-50%);
+        opacity: 0;
+    }
+    100% {
+        transform: translateX(0) translateY(-50%);
+        opacity: 1;
+    }
+}
+
+.login-container {
+       position: absolute;
+    top: 50%;
+    left: 800px;
+    transform: translateY(-50%);
+    background: #000000;
+    padding: 2rem;
+    border-radius: 10px;
+    width: 350px;
+    text-align: center;
+    border: 3px solid #ffd900;
+    box-shadow: 0 0 15px rgba(225,250,2,0.5);
+
+    /* transición suave para movimiento */
+    transition: transform 0.3s, box-shadow 0.3s;
+
+    animation: slideIn 1s ease-out forwards; /* aplica la animación */
+}
+.login-container:hover {
+    transform: translateY(-45%); /* baja un poco respecto al centro */
+    box-shadow: 0 10px 30px rgba(225,250,2,0.5);
+}
+
+
+
+
+
+        .login-container h2 {
+            margin-bottom: 1.2rem;
+            color: #ffd900;
+        }
+
+       .input-box {
+    width: 80%;
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    border: 1px solid  #ffd900;
+    background: rgba(255, 255, 255, 0.05); /* transparente sobre negro */
+    color: #ffffff;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.input-box:focus {
+    border-color: #ffd900;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+        .btn {
+            width: 80%;
+            padding: 0.9rem;
+            border: none;
+            border-radius: 6px;
+            margin-top: 0.8rem;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .btn-login {
+    background: linear-gradient(90deg, #ffd900, #FFC107);
+    color: #000000;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-login:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(225, 250, 2, 0.4);
+}
+
+.btn-register {
+    background: transparent;
+    color: #ffd900;
+    border: 2px solid #ffd900;
+      font-weight: 600;
+}
+
+.btn-register:hover {
+    background:#ffd900;
+    color: #000;
+}
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <img src="images.jpg" alt="Imagen Login" class="login-image" />
+        <div class="login-container">
+            <h2>Ingresar</h2>
+            <input type="email" placeholder="Correo Electrónico" class="input-box" required />
+            <input type="password" placeholder="Contraseña" class="input-box" required />
+            <button class="btn btn-login">Login</button>
+            <button class="btn btn-register">Registrar</button>
+        </div>
+    </div>
+</body>
+</html>
