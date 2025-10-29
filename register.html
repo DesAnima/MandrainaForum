@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Registro</title>
+
+    <!-- Ruta correcta del CSS (mismo nivel que este archivo) -->
+    <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+    <div class="login-wrapper">
+        <img src="images.jpg" alt="Imagen Registro" class="login-image" />
+        <div class="login-container">
+            <h2>Crear Cuenta</h2>
+           <form method="POST" action="register.php" enctype="multipart/form-data">
+    <input type="email" name="email" class="input-box" placeholder="Correo Electrónico" required />
+    <input type="password" name="password" class="input-box" placeholder="Contraseña" required />
+    <input type="text" name="nickname" class="input-box" placeholder="Apodo" required />
+    <textarea name="bio" class="input-box" placeholder="Descripción" rows="3"></textarea><br>
+    <label style="color:#ffd900;">Foto de Perfil:</label>
+    <input type="file" name="profile_pic" class="input-box" accept="image/*" />
+    <button type="submit" class="btn btn-login">Registrar Usuario</button>
+</form>
+            <button class="btn btn-register" onclick="window.location.href='index principal.html'">Volver al Login</button>
+        </div>
+    </div>
+</body>
+</html>
