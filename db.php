@@ -1,22 +1,24 @@
 <?php
-// Leer conexión desde variables de entorno (Render/Neon)
-$databaseUrl = getenv('postgresql://neondb_owner:npg_FVSjnq2Z3QfG@ep-bitter-silence-agogkiof-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+// Leer la URL de conexión desde la variable de entorno
+$databaseUrl = getenv('DATABASE_URL');
 
 if ($databaseUrl) {
-    // Ejemplo de DATABASE_URL: postgres://user:pass@host:port/dbname
+    // Ejemplo: postgresql://user:pass@host:port/dbname?sslmode=require
     $parts = parse_url($databaseUrl);
     $user = $parts['user'] ?? '';
     $password = $parts['pass'] ?? '';
     $host = $parts['host'] ?? '';
     $port = $parts['port'] ?? '5432';
     $dbname = ltrim($parts['path'] ?? '', '/');
-    $sslmode = 'require';
+    // Tomar el sslmode desde la query si existe
+    parse_str($parts['query'] ?? '', $query);
+    $sslmode = $query['sslmode'] ?? 'require';
 } else {
-    // Variables separadas (por si querés usar DB_HOST, DB_USER, etc.)
-    $host = getenv('DB_HOST');
-    $dbname = getenv('DB_NAME');
-    $user = getenv('DB_USER');
-    $password = getenv('DB_PASS');
+    // Variables separadas como alternativa
+    $host = getenv('DB_HOST') ?: 'localhost';
+    $dbname = getenv('DB_NAME') ?: 'neondb';
+    $user = getenv('DB_USER') ?: 'neondb_owner';
+    $password = getenv('DB_PASS') ?: '';
     $port = getenv('DB_PORT') ?: '5432';
     $sslmode = getenv('DB_SSLMODE') ?: 'require';
 }
