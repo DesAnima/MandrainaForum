@@ -1,7 +1,7 @@
 <?php
 // Leer la URL de conexión desde la variable de entorno
 $databaseUrl = getenv('DATABASE_URL');
-
+//xd
 if ($databaseUrl) {
     // Ejemplo: postgresql://user:pass@host:port/dbname?sslmode=require
     $parts = parse_url($databaseUrl);
@@ -33,3 +33,4 @@ try {
     die("Error de conexión DB: " . $e->getMessage());
 }
 ?>
+
