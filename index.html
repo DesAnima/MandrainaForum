@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login</title>
@@ -22,7 +23,7 @@
 
         .toggle-password {
             position: absolute;
-            top: 75%;
+            top: 56%;
             right: 10px;
             transform: translateY(-50%);
             background: transparent;
@@ -40,6 +41,7 @@
     </style>
 </head>
 <body>
+    
     <div class="login-wrapper">
         <img src="images.jpg" alt="Imagen Login" class="login-image" />
         <div class="login-container">
@@ -49,9 +51,24 @@
     
 
     <div class="password-container">
+        
         <input type="email" id="correo" name="email" class="input-box" placeholder="Correo Electrónico" required />
         <input type="password" id="password" name="password" class="input-box" placeholder="Contraseña" required />
         <button type="button" class="toggle-password" onclick="togglePassword()">Mostrar</button>
+        <div id="g_id_onload"
+     data-client_id="TU_CLIENT_ID_DE_GOOGLE"
+     data-login_uri="https://tu-servidor.com/auth/google"
+     data-auto_prompt="false">
+</div>
+
+<div class="g_id_signin"
+     data-type="standard"
+     data-shape="pill"
+     data-theme="filled_black"
+     data-text="signin_with"
+     data-size="large"
+     data-logo_alignment="left">
+</div>
     </div>
 
     <button type="submit" class="btn btn-login">Login</button>
@@ -84,7 +101,7 @@
             }
         }
 
-        // 🛡️ Validación básica del formulario
+
         function validarFormulario() {
             const correo = document.getElementById("correo");
             const password = document.getElementById("password");
@@ -98,5 +115,4 @@
     </script>
 </body>
 </html>
-
 
