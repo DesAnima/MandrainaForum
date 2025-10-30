@@ -1,6 +1,6 @@
 <?php
 ob_start();
-require_once 'db.php'; // Conecta con Neon (PostgreSQL)
+require_once 'db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = trim($_POST['email']);
@@ -14,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Crear tabla si no existe
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -34,15 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($existing) {
             if ($existing['email'] === $email) {
-                echo "<script>alert('❗ Este correo ya tiene una cuenta registrada.'); window.history.back();</script>";
+                header("Location: register.html?error=email");
                 exit();
             } elseif ($existing['nickname'] === $nickname) {
-                echo "<script>alert('⚠️ Este nombre de usuario ya está en uso.'); window.history.back();</script>";
+                header("Location: register.html?error=nickname");
                 exit();
             }
         }
 
-        // Insertar nuevo usuario si no hay duplicados
+        // Insertar usuario
         $sql = "INSERT INTO usuarios (email, password, nickname, bio, profile_pic)
                 VALUES (:email, :password, :nickname, :bio, :profile_pic)";
         $stmt = $pdo->prepare($sql);
@@ -53,16 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
         $stmt->execute();
 
-        echo "<script>alert('✅ Registro exitoso. Ahora puedes iniciar sesión.'); window.location.href='index.html';</script>";
+        header("Location: index.html?success=1");
         exit();
 
     } catch (PDOException $e) {
-        // Captura errores de SQL (por si hay duplicado pese a UNIQUE)
         if (strpos($e->getMessage(), 'duplicate key value') !== false) {
-            echo "<script>alert('⚠️ El correo o el nombre de usuario ya están en uso.'); window.history.back();</script>";
-        } else {
-            echo "<h2 style='color:red;'>❌ Error al registrar usuario: " . htmlspecialchars($e->getMessage()) . "</h2>";
+            header("Location: register.html?error=duplicate");
+            exit();
         }
+        echo "<h2 style='color:red;'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</h2>";
     }
 }
 
