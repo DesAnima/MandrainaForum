@@ -1,4 +1,5 @@
 <?php
+ob_start(); // Inicia buffer de salida
 require_once 'db.php'; // Conecta con Neon
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -7,14 +8,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nickname = $_POST['nickname'];
     $bio = $_POST['bio'] ?? '';
 
-    // Manejo de imagen (si se sube)
     $profile_pic = null;
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === 0) {
         $profile_pic = file_get_contents($_FILES['profile_pic']['tmp_name']);
     }
 
     try {
-        // Crear tabla si no existe (solo la primera vez)
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
@@ -26,7 +25,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             )
         ");
 
-        // Insertar usuario
         $sql = "INSERT INTO usuarios (email, password, nickname, bio, profile_pic)
                 VALUES (:email, :password, :nickname, :bio, :profile_pic)";
         $stmt = $pdo->prepare($sql);
@@ -37,13 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
         $stmt->execute();
 
-        // ✅ Si se ejecuta sin errores, redirigir
-        header("Location: index.html");
+        header("Location: index principal.html");
         exit();
 
     } catch (PDOException $e) {
-        // ❌ Mostrar error si algo falla
         echo "<h2 style='color:red;'>❌ Error al registrar usuario: " . htmlspecialchars($e->getMessage()) . "</h2>";
     }
 }
+
+ob_end_flush(); // Vacía el buffer
 ?>
