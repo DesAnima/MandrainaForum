@@ -35,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
         $stmt->execute();
 
-        header("Location: index principal.html");
+        header("Location: index.html");
         exit();
 
     } catch (PDOException $e) {
@@ -45,3 +45,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 ob_end_flush(); // Vacía el buffer
 ?>
+
