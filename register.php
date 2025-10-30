@@ -1,11 +1,11 @@
 <?php
-ob_start(); // Inicia buffer de salida
-require_once 'db.php'; // Conecta con Neon
+ob_start();
+require_once 'db.php'; // Conecta con Neon (PostgreSQL)
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = $_POST['email'];
+    $email = trim($_POST['email']);
     $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $nickname = $_POST['nickname'];
+    $nickname = trim($_POST['nickname']);
     $bio = $_POST['bio'] ?? '';
 
     $profile_pic = null;
@@ -14,17 +14,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
+        // Crear tabla si no existe
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS usuarios (
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 password TEXT NOT NULL,
-                nickname TEXT NOT NULL,
+                nickname TEXT UNIQUE NOT NULL,
                 bio TEXT,
                 profile_pic BYTEA
             )
         ");
 
+        // Verificar duplicados
+        $checkSql = "SELECT email, nickname FROM usuarios WHERE email = :email OR nickname = :nickname";
+        $checkStmt = $pdo->prepare($checkSql);
+        $checkStmt->execute([':email' => $email, ':nickname' => $nickname]);
+        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($existing) {
+            if ($existing['email'] === $email) {
+                echo "<script>alert('❗ Este correo ya tiene una cuenta registrada.'); window.history.back();</script>";
+                exit();
+            } elseif ($existing['nickname'] === $nickname) {
+                echo "<script>alert('⚠️ Este nombre de usuario ya está en uso.'); window.history.back();</script>";
+                exit();
+            }
+        }
+
+        // Insertar nuevo usuario si no hay duplicados
         $sql = "INSERT INTO usuarios (email, password, nickname, bio, profile_pic)
                 VALUES (:email, :password, :nickname, :bio, :profile_pic)";
         $stmt = $pdo->prepare($sql);
@@ -35,14 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
         $stmt->execute();
 
-        header("Location: index.html");
+        echo "<script>alert('✅ Registro exitoso. Ahora puedes iniciar sesión.'); window.location.href='index.html';</script>";
         exit();
 
     } catch (PDOException $e) {
-        echo "<h2 style='color:red;'>❌ Error al registrar usuario: " . htmlspecialchars($e->getMessage()) . "</h2>";
+        // Captura errores de SQL (por si hay duplicado pese a UNIQUE)
+        if (strpos($e->getMessage(), 'duplicate key value') !== false) {
+            echo "<script>alert('⚠️ El correo o el nombre de usuario ya están en uso.'); window.history.back();</script>";
+        } else {
+            echo "<h2 style='color:red;'>❌ Error al registrar usuario: " . htmlspecialchars($e->getMessage()) . "</h2>";
+        }
     }
 }
 
-ob_end_flush(); // Vacía el buffer
+ob_end_flush();
 ?>
-
