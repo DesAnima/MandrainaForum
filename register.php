@@ -3,7 +3,7 @@ require_once 'db.php'; // Conecta con Neon
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'];
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT); // seguridad
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $nickname = $_POST['nickname'];
     $bio = $_POST['bio'] ?? '';
 
@@ -37,11 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
         $stmt->execute();
 
-        echo "<h2 style='color:green;'>✅ Usuario registrado correctamente</h2>";
-        echo "<a href='index principal.html'>Volver al login</a>";
+        // ✅ Si se ejecuta sin errores, redirigir
+        header("Location: index.html");
+        exit();
 
     } catch (PDOException $e) {
-        echo "<h2 style='color:red;'>❌ Error: " . $e->getMessage() . "</h2>";
+        // ❌ Mostrar error si algo falla
+        echo "<h2 style='color:red;'>❌ Error al registrar usuario: " . htmlspecialchars($e->getMessage()) . "</h2>";
     }
 }
 ?>
