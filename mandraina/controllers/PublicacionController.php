@@ -1,6 +1,7 @@
 <?php
 // controllers/PublicacionController.php
 require_once __DIR__ . '/../models/Publicacion.php';
+require_once __DIR__ . '/../includes/FiltroContenido.php';
 
 class PublicacionController
 {
@@ -18,6 +19,15 @@ class PublicacionController
         exit;
     }
 
+    // Agrega "contenido_sensible" (true/false) para que el panel decida si oculta el contenido.
+    private function marcarSensible(array $publicacion): array
+    {
+        $publicacion['contenido_sensible'] = FiltroContenido::esVulgar(
+            ($publicacion['titulo'] ?? '') . ' ' . ($publicacion['contenido'] ?? '')
+        );
+        return $publicacion;
+    }
+
     private function requireAuth(): int
     {
         if (empty($_SESSION['user_id'])) {
@@ -28,7 +38,7 @@ class PublicacionController
 
     public function index(): void
     {
-        $this->jsonResponse(200, $this->model->getAll());
+        $this->jsonResponse(200, array_map([$this, 'marcarSensible'], $this->model->getAll()));
     }
 
     public function show(int $id): void
@@ -39,7 +49,7 @@ class PublicacionController
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $id]);
         }
 
-        $this->jsonResponse(200, $publicacion);
+        $this->jsonResponse(200, $this->marcarSensible($publicacion));
     }
 
     public function store(array $body): void
@@ -54,7 +64,7 @@ class PublicacionController
         }
 
         $nueva = $this->model->create($userId, $titulo, $contenido);
-        $this->jsonResponse(201, $nueva);
+        $this->jsonResponse(201, $this->marcarSensible($nueva));
     }
 
     public function update(int $id, array $body): void
@@ -78,7 +88,7 @@ class PublicacionController
         }
 
         $actualizada = $this->model->update($id, $titulo, $contenido);
-        $this->jsonResponse(200, $actualizada);
+        $this->jsonResponse(200, $this->marcarSensible($actualizada));
     }
 
     public function destroy(int $id): void

@@ -52,10 +52,14 @@ require_once __DIR__ . '/includes/auth_check.php';
         const cancelBtn = document.getElementById('cancel-edit-btn');
         const formTitle = document.getElementById('form-title');
 
+        // Escapa también las comillas: se usa dentro de atributos (data-titulo, data-contenido).
         function escapeHtml(str) {
-            const div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
         }
 
         async function cargarPublicaciones() {
@@ -76,12 +80,14 @@ require_once __DIR__ . '/includes/auth_check.php';
 
                 feedEl.innerHTML = data.map(renderPost).join('');
             } catch (err) {
+                console.error('Error al cargar publicaciones:', err);
                 feedStatus.textContent = 'Error de red al cargar publicaciones.';
             }
         }
 
         function renderPost(post) {
-            const esPropia = post.user_id === currentUserId;
+            const esPropia = Number(post.user_id) === currentUserId;
+            const sensible = post.contenido_sensible === true;
             const fecha = new Date(post.fecha_creacion).toLocaleString();
 
             return `
@@ -90,8 +96,16 @@ require_once __DIR__ . '/includes/auth_check.php';
                         <strong>${escapeHtml(post.nickname)}</strong>
                         <span class="post-date">${fecha}</span>
                     </header>
-                    <h3>${escapeHtml(post.titulo)}</h3>
-                    <p>${escapeHtml(post.contenido)}</p>
+                    ${sensible ? `
+                        <div class="sensible-box">
+                            <p>⚠️ Esta publicación contiene lenguaje sensible.</p>
+                            <button type="button" class="btn-link reveal-btn">Mostrar contenido</button>
+                        </div>
+                    ` : ''}
+                    <div class="post-body" ${sensible ? 'hidden' : ''}>
+                        <h3>${escapeHtml(post.titulo)}</h3>
+                        <p>${escapeHtml(post.contenido)}</p>
+                    </div>
                     ${esPropia ? `
                         <div class="post-card-actions">
                             <button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}">Editar</button>
@@ -146,6 +160,13 @@ require_once __DIR__ . '/includes/auth_check.php';
         cancelBtn.addEventListener('click', resetForm);
 
         feedEl.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('reveal-btn')) {
+                const body = e.target.closest('.post-card').querySelector('.post-body');
+                body.hidden = !body.hidden;
+                e.target.textContent = body.hidden ? 'Mostrar contenido' : 'Ocultar contenido';
+                return;
+            }
+
             if (e.target.classList.contains('edit-btn')) {
                 idField.value = e.target.dataset.id;
                 tituloField.value = e.target.dataset.titulo;

@@ -117,3 +117,17 @@
 .btn-link:hover {
     color: #fff;
 }
+
+.sensible-box {
+    background: rgba(255, 217, 0, 0.08);
+    border: 1px dashed #ffd900;
+    border-radius: 8px;
+    padding: 0.9rem;
+    margin: 0.6rem 0;
+    text-align: center;
+}
+
+.sensible-box p {
+    margin: 0 0 0.5rem;
+    color: #ffd900;
+}
