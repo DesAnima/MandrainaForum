@@ -1,0 +1,8 @@
+{
+    "name": "mandraina/forum",
+    "description": "API RESTful y foro Mandraina - AE1 PyLP III",
+    "require": {
+        "php": ">=8.1",
+        "vlucas/phpdotenv": "^5.6"
+    }
+}

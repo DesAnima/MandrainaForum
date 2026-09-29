@@ -1,69 +1,50 @@
 <?php
-ob_start();
-require_once __DIR__ . '/config/db.php';
+// register.php
+// Paso 1 del registro anónimo: recibe solo un nickname (por fetch/JSON
+// desde register.html) y crea un registro PENDIENTE. Todavía no crea
+// ninguna cuenta ni contraseña visible: eso pasa en claim.php cuando
+// se escanea el QR.
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $pdo = getPDO();
+require_once __DIR__ . '/models/Usuario.php';
 
-    $email = trim($_POST['email']);
-    $password = password_hash($_POST['password'], PASSWORD_DEFAULT);
-    $nickname = trim($_POST['nickname']);
-    $bio = $_POST['bio'] ?? '';
+header('Content-Type: application/json; charset=utf-8');
 
-    $profile_pic = null;
-    if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] === 0) {
-        $profile_pic = file_get_contents($_FILES['profile_pic']['tmp_name']);
-    }
-
-    try {
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                email TEXT UNIQUE NOT NULL,
-                password TEXT NOT NULL,
-                nickname TEXT UNIQUE NOT NULL,
-                bio TEXT,
-                profile_pic BYTEA
-            )
-        ");
-
-        // Verificar duplicados
-        $checkSql = "SELECT email, nickname FROM usuarios WHERE email = :email OR nickname = :nickname";
-        $checkStmt = $pdo->prepare($checkSql);
-        $checkStmt->execute([':email' => $email, ':nickname' => $nickname]);
-        $existing = $checkStmt->fetch(PDO::FETCH_ASSOC);
-
-        if ($existing) {
-            if ($existing['email'] === $email) {
-                header("Location: register.html?error=email");
-                exit();
-            } elseif ($existing['nickname'] === $nickname) {
-                header("Location: register.html?error=nickname");
-                exit();
-            }
-        }
-
-        // Insertar usuario
-        $sql = "INSERT INTO usuarios (email, password, nickname, bio, profile_pic)
-                VALUES (:email, :password, :nickname, :bio, :profile_pic)";
-        $stmt = $pdo->prepare($sql);
-        $stmt->bindParam(':email', $email);
-        $stmt->bindParam(':password', $password);
-        $stmt->bindParam(':nickname', $nickname);
-        $stmt->bindParam(':bio', $bio);
-        $stmt->bindParam(':profile_pic', $profile_pic, PDO::PARAM_LOB);
-        $stmt->execute();
-
-        header("Location: index.html?success=1");
-        exit();
-
-    } catch (PDOException $e) {
-        if (strpos($e->getMessage(), 'duplicate key value') !== false) {
-            header("Location: register.html?error=duplicate");
-            exit();
-        }
-        echo "<h2 style='color:red;'>❌ Error: " . htmlspecialchars($e->getMessage()) . "</h2>";
-    }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['error' => 'Método no permitido.']);
+    exit;
 }
 
-ob_end_flush();
+$body = json_decode(file_get_contents('php://input'), true);
+$nickname = trim($body['nickname'] ?? $_POST['nickname'] ?? '');
+
+if ($nickname === '') {
+    http_response_code(400);
+    echo json_encode(['error' => 'El nickname es obligatorio.']);
+    exit;
+}
+
+try {
+    $usuario = new Usuario();
+    $pendiente = $usuario->crearPendiente($nickname);
+
+    // Armamos la URL absoluta que va codificada en el QR.
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $basePath = rtrim(str_replace('register.php', '', $_SERVER['PHP_SELF']), '/');
+    $claimUrl = "{$scheme}://{$host}{$basePath}/claim.php?token=" . urlencode($pendiente['token']);
+
+    echo json_encode([
+        'token' => $pendiente['token'],
+        'claim_url' => $claimUrl,
+        'expires_in' => $pendiente['expires_in'],
+    ]);
+} catch (InvalidArgumentException $e) {
+    http_response_code(409);
+    echo json_encode(['error' => $e->getMessage()]);
+} catch (Throwable $e) {
+    // Se escribe en el log de Apache/PHP (visible con `docker logs`).
+    error_log('[register.php] ' . get_class($e) . ': ' . $e->getMessage() . ' en ' . $e->getFile() . ':' . $e->getLine());
+    http_response_code(500);
+    echo json_encode(['error' => 'Error interno al generar el registro.']);
+}

@@ -3,6 +3,18 @@
 // Conexión centralizada a la base de datos usando variables de entorno.
 // No hardcodear credenciales acá (ver .env.example).
 
+// Cargar variables desde .env si existe (desarrollo local con volumen).
+// En Render las variables ya vienen seteadas en el proceso, así que
+// safeLoad() simplemente no hace nada si no encuentra el archivo, y
+// createImmutable no pisa variables que el entorno ya trae definidas.
+$autoload = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($autoload)) {
+    require_once $autoload;
+    if (class_exists(\Dotenv\Dotenv::class)) {
+        \Dotenv\Dotenv::createImmutable(__DIR__ . '/..')->safeLoad();
+    }
+}
+
 function getPDO(): PDO
 {
     static $pdo = null;
@@ -39,8 +51,8 @@ function getPDO(): PDO
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
     } catch (PDOException $e) {
-        // No exponemos el mensaje real de PDO al cliente, lo relanzamos
-        // para que lo capture el middleware central de errores.
+        // El mensaje real va al log del servidor (docker logs), no al cliente.
+        error_log('[db] ' . $e->getMessage());
         throw new RuntimeException('Error de conexión a la base de datos.');
     }
 

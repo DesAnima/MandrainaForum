@@ -39,7 +39,7 @@ require_once __DIR__ . '/includes/auth_check.php';
     </main>
 
     <script>
-        const API_URL = 'api/v1/publicaciones.php';
+        const API_URL = 'api/v1/publicaciones';
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
 
         const feedEl = document.getElementById('feed');
@@ -87,7 +87,10 @@ require_once __DIR__ . '/includes/auth_check.php';
             return `
                 <article class="post-card" data-id="${post.id}">
                     <header class="post-card-header">
-                        <strong>${escapeHtml(post.nickname)}</strong>
+                        <div class="post-author">
+                            <img class="avatar" src="avatar.php?user_id=${post.user_id}" alt="${escapeHtml(post.nickname)}" />
+                            <strong>${escapeHtml(post.nickname)}</strong>
+                        </div>
                         <span class="post-date">${fecha}</span>
                     </header>
                     <h3>${escapeHtml(post.titulo)}</h3>
@@ -120,7 +123,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                 contenido: contenidoField.value.trim(),
             };
 
-            const url = id ? `${API_URL}?id=${id}` : API_URL;
+            const url = id ? `${API_URL}/${id}` : API_URL;
             const method = id ? 'PUT' : 'POST';
 
             try {
@@ -161,7 +164,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                 if (!confirm('¿Seguro que querés eliminar esta publicación?')) return;
 
                 try {
-                    const res = await fetch(`${API_URL}?id=${id}`, { method: 'DELETE' });
+                    const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
 
                     if (res.status !== 204) {
                         const data = await res.json();

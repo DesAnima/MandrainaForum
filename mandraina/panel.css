@@ -89,9 +89,25 @@
 .post-card-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     color: #ffd900;
     font-size: 0.85rem;
     margin-bottom: 0.5rem;
+}
+
+.post-author {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #ffd900;
+    flex-shrink: 0;
 }
 
 .post-card h3 {
