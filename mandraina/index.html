@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login</title>
+    <link rel="stylesheet" href="styles.css" />
+
+    <style>
+        .password-container {
+            position: relative;
+            width: 80%;
+            margin: 0.5rem auto;
+        }
+
+        .password-container input {
+            width: 100%;
+            box-sizing: border-box;
+            padding-right: 4.5rem;
+        }
+
+        .toggle-password {
+            position: absolute;
+            top: 56%;
+            right: 10px;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: #ffd900;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+        }
+
+        .toggle-password:hover {
+            color: #fff;
+        }
+
+        #login-error {
+            color: #ff5c5c;
+            min-height: 1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-wrapper">
+        <img src="images.jpg" alt="Imagen Login" class="login-image" />
+        <div class="login-container">
+            <h2>Ingresar</h2>
+
+            <p id="login-error"></p>
+
+            <form onsubmit="return validarFormulario()" method="POST" action="login.php">
+
+                <input type="text" id="nickname" name="nickname" class="input-box" placeholder="Nickname" required minlength="3" maxlength="20" />
+
+                <div class="password-container">
+                    <input type="password" id="password" name="password" class="input-box" placeholder="Contraseña" required />
+                    <button type="button" class="toggle-password" onclick="togglePassword()">Mostrar</button>
+                </div>
+
+                <button type="submit" class="btn btn-login">Login</button>
+
+            </form>
+
+            <button class="btn btn-register" onclick="window.location.href='register.html'">
+                Registrar
+            </button>
+
+        </div>
+    </div>
+
+    <script>
+        function togglePassword() {
+            const passwordInput = document.getElementById("password");
+            const toggleBtn = document.querySelector(".toggle-password");
+
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                toggleBtn.textContent = "Ocultar";
+            } else {
+                passwordInput.type = "password";
+                toggleBtn.textContent = "Mostrar";
+            }
+        }
+
+        function validarFormulario() {
+            const nickname = document.getElementById("nickname");
+            const password = document.getElementById("password");
+
+            if (!nickname.value.trim() || !password.value.trim()) {
+                alert("Por favor, complete todos los campos antes de continuar.");
+                return false;
+            }
+            return true;
+        }
+
+        // login.php redirige acá con ?e=<código> cuando algo sale mal.
+        (function () {
+            const mensajes = {
+                vacio: 'Nickname y contraseña requeridos.',
+                credenciales: 'Credenciales inválidas.',
+                limite: 'Demasiados intentos. Esperá unos minutos y probá de nuevo.',
+            };
+            const codigo = new URLSearchParams(window.location.search).get('e');
+            if (codigo && mensajes[codigo]) {
+                document.getElementById('login-error').textContent = mensajes[codigo];
+            }
+        })();
+    </script>
+</body>
+</html>
