@@ -155,6 +155,24 @@ publica `respuesta.creada` / `respuesta.eliminada` en RabbitMQ; el worker
 registra en `moderacion_log` las respuestas con lenguaje vulgar. La tabla
 `respuestas` se crea sola (ver también `migrations/004_respuestas.sql`).
 
+### Tags
+
+Cada publicación puede llevar hasta 5 tags (máximo 20 caracteres cada uno).
+Se envían en el campo `tags` al crear (`POST`) o editar (`PUT`) como texto
+(`"musica, #juegos"`) o como lista, y se normalizan en `includes/Tags.php`:
+minúsculas, sin `#`, sin tildes, solo letras, números, `_` y `-`, y sin
+repetidos. Un tag vulgar se rechaza con 400. En un `PUT`, si no se envía
+`tags` quedan como están; si se envía (aunque sea vacío) se reemplazan.
+
+| Método | Ruta                                  | Descripción                                                    |
+|--------|---------------------------------------|----------------------------------------------------------------|
+| GET    | `/api/v1/publicaciones?tag={tag}`     | Solo las publicaciones con ese tag (filtra sobre el feed cacheado) |
+| GET    | `/api/v1/tags.php`                    | Tags en los que participa el usuario (publicó o respondió), con el total de publicaciones de cada uno. Requiere sesión |
+
+Cada publicación del feed incluye `tags` (lista). La tabla `publicacion_tags`
+se crea sola (ver también `migrations/005_tags.sql`). Como cambió la forma de
+los datos, la clave de caché del feed pasó a `feed:v2`.
+
 ## Redis
 
 Es opcional: sin `REDIS_URL` la app funciona igual, solo que sin estas mejoras.

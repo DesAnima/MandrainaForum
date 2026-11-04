@@ -21,6 +21,13 @@ require_once __DIR__ . '/includes/auth_check.php';
         </div>
     </header>
 
+    <div class="panel-layout">
+    <aside class="tags-bar" aria-label="Tags">
+        <h2>Mis tags</h2>
+        <ul id="tags-list" class="tags-list"></ul>
+        <p id="tags-empty" class="tags-empty" hidden>Todavía no participás en ningún tag. Publicá o respondé en una publicación con tags y van a aparecer acá.</p>
+    </aside>
+
     <main class="panel-main">
         <section class="post-form-card">
             <h2 id="form-title">Nueva publicación</h2>
@@ -30,6 +37,8 @@ require_once __DIR__ . '/includes/auth_check.php';
                 <small class="char-count" id="titulo-count">0 / 100</small>
                 <textarea id="contenido" class="input-box" placeholder="¿Qué querés contar?" rows="3" maxlength="2000" required></textarea>
                 <small class="char-count" id="contenido-count">0 / 2000</small>
+                <input type="text" id="tags" class="input-box" placeholder="Tags (ej: musica, juegos)" maxlength="120" />
+                <small class="form-hint">Hasta 5 tags separados por coma o espacio.</small>
                 <div class="post-form-actions">
                     <button type="submit" class="btn btn-login" id="submit-btn">Publicar</button>
                     <button type="button" class="btn btn-register" id="cancel-edit-btn" hidden>Cancelar</button>
@@ -37,14 +46,21 @@ require_once __DIR__ . '/includes/auth_check.php';
             </form>
         </section>
 
+        <div id="feed-filter" class="feed-filter" hidden>
+            <span>Publicaciones con <strong id="feed-filter-tag"></strong></span>
+            <button type="button" class="btn-link" id="feed-filter-clear">Ver todas</button>
+        </div>
+
         <section id="feed" class="feed">
             <p id="feed-status">Cargando publicaciones...</p>
         </section>
     </main>
+    </div>
 
     <script>
         const API_URL = 'api/v1/publicaciones';
         const RESPUESTAS_URL = 'api/v1/respuestas.php';
+        const TAGS_URL = 'api/v1/tags.php';
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
 
         const feedEl = document.getElementById('feed');
@@ -58,6 +74,57 @@ require_once __DIR__ . '/includes/auth_check.php';
         const formTitle = document.getElementById('form-title');
         const tituloCount = document.getElementById('titulo-count');
         const contenidoCount = document.getElementById('contenido-count');
+        const tagsField = document.getElementById('tags');
+        const tagsList = document.getElementById('tags-list');
+        const tagsEmpty = document.getElementById('tags-empty');
+        const feedFilter = document.getElementById('feed-filter');
+        const feedFilterTag = document.getElementById('feed-filter-tag');
+
+        let tagActivo = null;
+        let misTags = [];
+
+        function renderTagsBar() {
+            const todas = `
+                <li><button type="button" class="tag-item ${tagActivo === null ? 'active' : ''}" data-tag="">Todas las publicaciones</button></li>
+            `;
+            const items = misTags.map((t) => `
+                <li>
+                    <button type="button" class="tag-item ${tagActivo === t.tag ? 'active' : ''}" data-tag="${escapeHtml(t.tag)}">
+                        <span>#${escapeHtml(t.tag)}</span>
+                        <span class="tag-total">${Number(t.total)}</span>
+                    </button>
+                </li>
+            `).join('');
+
+            tagsList.innerHTML = todas + items;
+            tagsEmpty.hidden = misTags.length > 0;
+        }
+
+        async function cargarMisTags() {
+            try {
+                const res = await fetch(TAGS_URL);
+                if (!res.ok) return;
+                misTags = await res.json();
+                renderTagsBar();
+            } catch (err) {
+                console.error('Error al cargar los tags:', err);
+            }
+        }
+
+        function seleccionarTag(tag) {
+            tagActivo = tag || null;
+            feedFilter.hidden = tagActivo === null;
+            feedFilterTag.textContent = tagActivo === null ? '' : `#${tagActivo}`;
+            renderTagsBar();
+            cargarPublicaciones();
+        }
+
+        tagsList.addEventListener('click', (e) => {
+            const boton = e.target.closest('.tag-item');
+            if (boton) seleccionarTag(boton.dataset.tag);
+        });
+
+        document.getElementById('feed-filter-clear').addEventListener('click', () => seleccionarTag(null));
 
         function actualizarContadores() {
             tituloCount.textContent = `${tituloField.value.length} / ${tituloField.maxLength}`;
@@ -80,7 +147,8 @@ require_once __DIR__ . '/includes/auth_check.php';
         async function cargarPublicaciones() {
             feedStatus.textContent = 'Cargando publicaciones...';
             try {
-                const res = await fetch(API_URL);
+                const url = tagActivo === null ? API_URL : `${API_URL}?tag=${encodeURIComponent(tagActivo)}`;
+                const res = await fetch(url);
                 const data = await res.json();
 
                 if (!res.ok) {
@@ -89,7 +157,9 @@ require_once __DIR__ . '/includes/auth_check.php';
                 }
 
                 if (data.length === 0) {
-                    feedEl.innerHTML = '<p id="feed-status">Todavía no hay publicaciones. ¡Sé el primero!</p>';
+                    feedEl.innerHTML = tagActivo === null
+                        ? '<p id="feed-status">Todavía no hay publicaciones. ¡Sé el primero!</p>'
+                        : '<p id="feed-status">Todavía no hay publicaciones con ese tag.</p>';
                     return;
                 }
 
@@ -124,9 +194,14 @@ require_once __DIR__ . '/includes/auth_check.php';
                         <h3>${escapeHtml(post.titulo)}</h3>
                         <p>${escapeHtml(post.contenido)}</p>
                     </div>
+                    ${(post.tags || []).length ? `
+                        <div class="post-tags">
+                            ${post.tags.map((t) => `<button type="button" class="tag-chip" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`).join('')}
+                        </div>
+                    ` : ''}
                     ${esPropia ? `
                         <div class="post-card-actions">
-                            <button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}">Editar</button>
+                            <button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}" data-tags="${escapeHtml((post.tags || []).join(' '))}">Editar</button>
                             <button class="btn-link delete-btn" data-id="${post.id}">Eliminar</button>
                         </div>
                     ` : ''}
@@ -230,6 +305,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                 input.value = '';
                 form.querySelector('.reply-count').textContent = `0 / ${input.maxLength}`;
                 cargarRespuestas(card);
+                cargarMisTags();
             } catch (err) {
                 console.error('Error al guardar la respuesta:', err);
                 alert('Error de red al guardar la respuesta.');
@@ -242,6 +318,7 @@ require_once __DIR__ . '/includes/auth_check.php';
             idField.value = '';
             tituloField.value = '';
             contenidoField.value = '';
+            tagsField.value = '';
             actualizarContadores();
             submitBtn.textContent = 'Publicar';
             formTitle.textContent = 'Nueva publicación';
@@ -255,6 +332,7 @@ require_once __DIR__ . '/includes/auth_check.php';
             const payload = {
                 titulo: tituloField.value.trim(),
                 contenido: contenidoField.value.trim(),
+                tags: tagsField.value.trim(),
             };
 
             const url = id ? `${API_URL}/${id}` : API_URL;
@@ -275,6 +353,7 @@ require_once __DIR__ . '/includes/auth_check.php';
 
                 resetForm();
                 cargarPublicaciones();
+                cargarMisTags();
             } catch (err) {
                 console.error('Error al guardar la publicación:', err);
                 alert('Error de red al guardar la publicación.');
@@ -284,6 +363,11 @@ require_once __DIR__ . '/includes/auth_check.php';
         cancelBtn.addEventListener('click', resetForm);
 
         feedEl.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('tag-chip')) {
+                seleccionarTag(e.target.dataset.tag);
+                return;
+            }
+
             if (e.target.classList.contains('replies-toggle')) {
                 const card = e.target.closest('.post-card');
                 const seccion = card.querySelector('.replies');
@@ -331,6 +415,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                 idField.value = e.target.dataset.id;
                 tituloField.value = e.target.dataset.titulo;
                 contenidoField.value = e.target.dataset.contenido;
+                tagsField.value = e.target.dataset.tags || '';
                 actualizarContadores();
                 submitBtn.textContent = 'Guardar cambios';
                 formTitle.textContent = 'Editar publicación';
@@ -352,6 +437,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                     }
 
                     cargarPublicaciones();
+                    cargarMisTags();
                 } catch (err) {
                     console.error('Error al eliminar la publicación:', err);
                     alert('Error de red al eliminar la publicación.');
@@ -359,7 +445,9 @@ require_once __DIR__ . '/includes/auth_check.php';
             }
         });
 
+        renderTagsBar();
         cargarPublicaciones();
+        cargarMisTags();
     </script>
 </body>
 </html>
