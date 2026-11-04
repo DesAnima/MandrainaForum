@@ -7,8 +7,8 @@ FROM php:8.2-apache
 # Redis se usa con Predis (cliente en PHP puro, vía Composer), así que no
 # hace falta compilar ninguna extensión de Redis.
 RUN apt-get update && \
-    apt-get install -y libpq-dev libmagic-dev unzip git && \
-    docker-php-ext-install pdo pdo_pgsql fileinfo sockets && \
+    apt-get install -y libpq-dev libmagic-dev libonig-dev unzip git && \
+    docker-php-ext-install pdo pdo_pgsql fileinfo sockets mbstring && \
     rm -rf /var/lib/apt/lists/*
 
 # Traer Composer desde la imagen oficial
