@@ -8,8 +8,10 @@
 // publicaciones y respuestas (creada / editada / eliminada) hace dos tareas secundarias
 // que no tienen por qué demorar la respuesta de la API:
 //
-//   1. Moderación: si el texto tiene lenguaje vulgar (FiltroContenido), deja
-//      un registro en la tabla `moderacion_log` para revisión.
+//   1. Moderación: cuenta los insultos del texto (FiltroContenido). Con 1 a 3
+//      deja un registro en `moderacion_log` y el contenido sigue visible con
+//      el cartel de precaución; con 4 o más (UMBRAL_ELIMINACION) elimina la
+//      publicación o respuesta y deja el registro igual.
 //   2. Recalienta la caché del feed en Redis, así el próximo GET ya sale de
 //      Redis en vez de ir a PostgreSQL.
 //
@@ -52,44 +54,55 @@ function asegurarTablaModeracion(PDO $pdo): void
     ");
 }
 
+function registrarModeracion(PDO $pdo, int $publicacionId, int $userId, string $evento, string $motivo): void
+{
+    $stmt = $pdo->prepare("
+        INSERT INTO moderacion_log (publicacion_id, user_id, evento, motivo)
+        VALUES (:pid, :uid, :evento, :motivo)
+    ");
+    $stmt->execute([
+        ':pid' => $publicacionId,
+        ':uid' => $userId,
+        ':evento' => $evento,
+        ':motivo' => $motivo,
+    ]);
+}
+
 function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuestas, PDO $pdo): void
 {
     $tipo = (string) ($evento['evento'] ?? '');
     $id = (int) ($evento['publicacion_id'] ?? 0);
+    $umbral = FiltroContenido::UMBRAL_ELIMINACION;
 
     if (in_array($tipo, ['publicacion.creada', 'publicacion.editada'], true) && $id > 0) {
         $publicacion = $modelo->getById($id);
-        if ($publicacion && FiltroContenido::esVulgar($publicacion['titulo'] . ' ' . $publicacion['contenido'])) {
-            $stmt = $pdo->prepare("
-                INSERT INTO moderacion_log (publicacion_id, user_id, evento, motivo)
-                VALUES (:pid, :uid, :evento, :motivo)
-            ");
-            $stmt->execute([
-                ':pid' => $id,
-                ':uid' => (int) $publicacion['user_id'],
-                ':evento' => $tipo,
-                ':motivo' => 'lenguaje_vulgar',
-            ]);
-            logw("Moderación: publicación #{$id} marcada por lenguaje vulgar ({$tipo}).");
+        $insultos = $publicacion
+            ? FiltroContenido::contarInsultos($publicacion['titulo'] . ' ' . $publicacion['contenido'])
+            : 0;
+
+        if ($insultos >= $umbral) {
+            $modelo->delete($id);
+            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_insultos ({$insultos})");
+            logw("Moderación: publicación #{$id} ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
+        } elseif ($insultos > 0) {
+            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, 'lenguaje_vulgar');
+            logw("Moderación: publicación #{$id} marcada por lenguaje vulgar ({$insultos} insultos, {$tipo}).");
         }
     }
 
     if ($tipo === 'respuesta.creada' && $id > 0) {
         $rid = (int) ($evento['respuesta_id'] ?? 0);
         $respuesta = $rid > 0 ? $respuestas->getById($rid) : null;
-        if ($respuesta && FiltroContenido::esVulgar($respuesta['contenido'])) {
-            // El registro queda asociado a la publicación a la que se respondió.
-            $stmt = $pdo->prepare("
-                INSERT INTO moderacion_log (publicacion_id, user_id, evento, motivo)
-                VALUES (:pid, :uid, :evento, :motivo)
-            ");
-            $stmt->execute([
-                ':pid' => $id,
-                ':uid' => (int) $respuesta['user_id'],
-                ':evento' => $tipo,
-                ':motivo' => 'lenguaje_vulgar_en_respuesta',
-            ]);
-            logw("Moderación: respuesta #{$rid} (publicación #{$id}) marcada por lenguaje vulgar.");
+        $insultos = $respuesta ? FiltroContenido::contarInsultos($respuesta['contenido']) : 0;
+
+        // El registro queda asociado a la publicación a la que se respondió.
+        if ($insultos >= $umbral) {
+            $respuestas->delete($rid);
+            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_insultos ({$insultos})");
+            logw("Moderación: respuesta #{$rid} (publicación #{$id}) ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
+        } elseif ($insultos > 0) {
+            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, 'lenguaje_vulgar_en_respuesta');
+            logw("Moderación: respuesta #{$rid} (publicación #{$id}) marcada por lenguaje vulgar ({$insultos} insultos).");
         }
     }
 

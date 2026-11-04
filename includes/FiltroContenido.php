@@ -8,6 +8,11 @@
 
 class FiltroContenido
 {
+    // Con esta cantidad de insultos (o más) el worker elimina la publicación
+    // o la respuesta. Con menos, el contenido queda visible pero con el
+    // cartel de precaución.
+    public const UMBRAL_ELIMINACION = 4;
+
     // Se escriben en minúscula y sin tildes (la ñ se mantiene).
     // No hace falta agregar plurales ("putas", "cabrones"), ni versiones
     // con letras repetidas ("puuuuta"): el filtro las detecta solo.
@@ -51,6 +56,16 @@ class FiltroContenido
         }
 
         return preg_match(self::patron(), self::normalizar($texto)) === 1;
+    }
+
+    /** Cantidad de insultos del texto; cada aparición cuenta, aunque se repita. */
+    public static function contarInsultos(string $texto): int
+    {
+        if (trim($texto) === '') {
+            return 0;
+        }
+
+        return (int) preg_match_all(self::patron(), self::normalizar($texto));
     }
 
     private static function normalizar(string $texto): string

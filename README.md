@@ -178,7 +178,7 @@ Cuando se crea, edita o elimina una publicación, la API publica un evento
 `mandraina.eventos`, que enruta a la cola durable `mandraina.publicaciones`.
 El proceso `worker/consumer.php` lo consume y:
 
-1. Registra en `moderacion_log` las publicaciones con lenguaje vulgar.
+1. Modera por cantidad de insultos (`FiltroContenido::contarInsultos`): con 1 a 3 el contenido sigue visible con el cartel de precaución y se registra en `moderacion_log`; con 4 o más (`UMBRAL_ELIMINACION`) la publicación o respuesta se elimina y también queda registrada.
 2. Recalienta la caché del feed en Redis.
 
 Si un mensaje falla se reintenta una vez; después va a la cola
