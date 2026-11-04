@@ -28,10 +28,12 @@ require_once __DIR__ . '/../../controllers/PublicacionController.php';
 // Cualquier excepción no controlada en el resto del script termina acá
 // como un 500 en JSON, en vez de un error crudo de PHP.
 set_exception_handler(function (Throwable $e) {
+    error_log("ERROR API PUBLICACIONES: " . $e);
+
     http_response_code(500);
     echo json_encode([
         'error' => 'Error interno del servidor.',
-        'detalle' => $e->getMessage(),
+        'detalle' => $e->getMessage()
     ]);
     exit;
 });
@@ -79,9 +81,12 @@ try {
             echo json_encode(['error' => 'Método no permitido.']);
     }
 } catch (Throwable $e) {
+    error_log("ERROR POST PUBLICACIONES: " . $e);
+
     http_response_code(500);
     echo json_encode([
         'error' => 'Error interno del servidor.',
-        'detalle' => $e->getMessage(),
+        'detalle' => $e->getMessage()
     ]);
 }
+
