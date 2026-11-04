@@ -7,8 +7,8 @@ FROM php:8.2-apache
 # Redis se usa con Predis (cliente en PHP puro, vía Composer), así que no
 # hace falta compilar ninguna extensión de Redis.
 RUN apt-get update && \
-    apt-get install -y libpq-dev libmagic-dev libonig-dev unzip git && \
-    docker-php-ext-install pdo pdo_pgsql fileinfo sockets mbstring && \
+    apt-get install -y libpq-dev libmagic-dev unzip git && \
+    docker-php-ext-install pdo pdo_pgsql fileinfo sockets && \
     rm -rf /var/lib/apt/lists/*
 
 # Traer Composer desde la imagen oficial
@@ -42,7 +42,3 @@ EXPOSE 80
 # "command") y RUN_WORKER queda sin definir.
 RUN sed -i 's/\r$//' docker/start.sh
 CMD ["sh", "docker/start.sh"]
-
-RUN echo "log_errors=On" > /usr/local/etc/php/conf.d/errors.ini && \
-    echo "error_log=/proc/self/fd/2" >> /usr/local/etc/php/conf.d/errors.ini && \
-    echo "display_errors=Off" >> /usr/local/etc/php/conf.d/errors.ini

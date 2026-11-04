@@ -121,29 +121,39 @@ class Publicacion
         return $row ? $this->armarFila($row) : null;
     }
 
+    // Se inserta la publicación y después sus tags, sin transacción explícita
+    // (la conexión de Neon pasa por un pooler y esto es lo que ya funcionaba).
+    // Si fallan los tags se borra la publicación para no dejarla a medias.
     public function create(int $userId, string $titulo, string $contenido, array $tags = []): array
     {
         $sql = "INSERT INTO publicaciones (user_id, titulo, contenido)
                 VALUES (:user_id, :titulo, :contenido)
                 RETURNING id";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':user_id' => $userId,
+            ':titulo' => $titulo,
+            ':contenido' => $contenido,
+        ]);
+        $newId = (int) $stmt->fetchColumn();
 
-        $this->pdo->beginTransaction();
+        if ($newId <= 0) {
+            throw new RuntimeException('El INSERT de la publicación no devolvió un id.');
+        }
+
         try {
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([
-                ':user_id' => $userId,
-                ':titulo' => $titulo,
-                ':contenido' => $contenido,
-            ]);
-            $newId = (int) $stmt->fetchColumn();
             $this->guardarTags($newId, $tags);
-            $this->pdo->commit();
         } catch (Throwable $e) {
-            $this->pdo->rollBack();
+            $this->delete($newId);
             throw $e;
         }
 
-        return $this->getById($newId);
+        $nueva = $this->getById($newId);
+        if ($nueva === null) {
+            throw new RuntimeException("La publicación #{$newId} se insertó pero no se pudo leer de nuevo.");
+        }
+
+        return $nueva;
     }
 
     // Con $tags en null los tags quedan como están; con una lista (aunque
@@ -155,26 +165,17 @@ class Publicacion
                     contenido = :contenido,
                     fecha_actualizacion = NOW()
                 WHERE id = :id";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':titulo' => $titulo,
+            ':contenido' => $contenido,
+            ':id' => $id,
+        ]);
 
-        $this->pdo->beginTransaction();
-        try {
-            $stmt = $this->pdo->prepare($sql);
-            $stmt->execute([
-                ':titulo' => $titulo,
-                ':contenido' => $contenido,
-                ':id' => $id,
-            ]);
-
-            if ($tags !== null) {
-                $del = $this->pdo->prepare("DELETE FROM publicacion_tags WHERE publicacion_id = :id");
-                $del->execute([':id' => $id]);
-                $this->guardarTags($id, $tags);
-            }
-
-            $this->pdo->commit();
-        } catch (Throwable $e) {
-            $this->pdo->rollBack();
-            throw $e;
+        if ($tags !== null) {
+            $del = $this->pdo->prepare("DELETE FROM publicacion_tags WHERE publicacion_id = :id");
+            $del->execute([':id' => $id]);
+            $this->guardarTags($id, $tags);
         }
 
         return $this->getById($id);

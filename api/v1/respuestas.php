@@ -13,6 +13,7 @@ require_once __DIR__ . '/../../controllers/RespuestaController.php';
 
 // Cualquier excepción no controlada termina como un 500 en JSON.
 set_exception_handler(function (Throwable $e) {
+    error_log('[api] ' . get_class($e) . ': ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
     http_response_code(500);
     echo json_encode([
         'error' => 'Error interno del servidor.',
@@ -56,6 +57,7 @@ try {
             echo json_encode(['error' => 'Método no permitido.']);
     }
 } catch (Throwable $e) {
+    error_log('[api] ' . get_class($e) . ': ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
     http_response_code(500);
     echo json_encode([
         'error' => 'Error interno del servidor.',

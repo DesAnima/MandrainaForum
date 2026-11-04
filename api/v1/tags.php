@@ -12,6 +12,7 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../controllers/PublicacionController.php';
 
 set_exception_handler(function (Throwable $e) {
+    error_log('[api] ' . get_class($e) . ': ' . $e->getMessage() . ' (' . basename($e->getFile()) . ':' . $e->getLine() . ')');
     http_response_code(500);
     echo json_encode([
         'error' => 'Error interno del servidor.',
