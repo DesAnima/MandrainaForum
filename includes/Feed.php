@@ -9,7 +9,7 @@ require_once __DIR__ . '/FiltroContenido.php';
 
 class Feed
 {
-    public const CLAVE = 'feed:v1';
+    public const CLAVE = 'feed:v2';
     public const TTL = 60; // segundos; red de seguridad por si falla la invalidación
 
     /** Agrega "contenido_sensible" (true/false) a una publicación. */
