@@ -42,3 +42,7 @@ EXPOSE 80
 # "command") y RUN_WORKER queda sin definir.
 RUN sed -i 's/\r$//' docker/start.sh
 CMD ["sh", "docker/start.sh"]
+
+RUN echo "log_errors=On" > /usr/local/etc/php/conf.d/errors.ini && \
+    echo "error_log=/proc/self/fd/2" >> /usr/local/etc/php/conf.d/errors.ini && \
+    echo "display_errors=Off" >> /usr/local/etc/php/conf.d/errors.ini
