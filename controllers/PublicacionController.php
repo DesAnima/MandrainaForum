@@ -4,6 +4,7 @@ require_once __DIR__ . '/../models/Publicacion.php';
 require_once __DIR__ . '/../includes/Feed.php';
 require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
+require_once __DIR__ . '/../includes/Texto.php';
 
 class PublicacionController
 {
@@ -32,35 +33,11 @@ class PublicacionController
         exit;
     }
 
-    // Normaliza un texto: quita caracteres invisibles y de control, colapsa
-    // los espacios repetidos y deja como máximo dos saltos de línea seguidos.
-    // Con $unaLinea (el título) los saltos de línea pasan a ser espacios.
-    private function limpiarTexto(mixed $valor, bool $unaLinea = false): string
-    {
-        $texto = is_string($valor) ? $valor : '';
-        $texto = str_replace(["\r\n", "\r"], "\n", $texto);
-        $texto = preg_replace(
-            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{00AD}\x{115F}\x{1160}\x{200B}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{2800}\x{3164}\x{FEFF}\x{FFA0}]/u',
-            '',
-            $texto
-        ) ?? '';
-
-        if ($unaLinea) {
-            $texto = preg_replace('/\s+/u', ' ', $texto) ?? '';
-        } else {
-            $texto = preg_replace('/\h+/u', ' ', $texto) ?? '';
-            $texto = preg_replace('/ ?\n ?/', "\n", $texto) ?? '';
-            $texto = preg_replace('/\n{3,}/', "\n\n", $texto) ?? '';
-        }
-
-        return trim($texto);
-    }
-
     // Devuelve [titulo, contenido] ya normalizados o responde 400.
     private function validarCampos(array $body): array
     {
-        $titulo = $this->limpiarTexto($body['titulo'] ?? '', true);
-        $contenido = $this->limpiarTexto($body['contenido'] ?? '');
+        $titulo = Texto::limpiar($body['titulo'] ?? '', true);
+        $contenido = Texto::limpiar($body['contenido'] ?? '');
 
         if ($titulo === '' || $contenido === '') {
             $this->jsonResponse(400, ['error' => 'Los campos "titulo" y "contenido" son obligatorios.']);

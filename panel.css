@@ -172,3 +172,52 @@
 .post-body p {
     overflow-wrap: anywhere;
 }
+
+.post-replies-bar {
+    margin-top: 0.8rem;
+}
+
+.replies {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255, 217, 0, 0.35);
+}
+
+.reply {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ffd900;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+}
+
+.reply-body {
+    margin: 0.3rem 0;
+    overflow-wrap: anywhere;
+}
+
+.replies-empty {
+    color: #8a8a8a;
+    font-size: 0.85rem;
+}
+
+.reply-form {
+    margin-top: 0.8rem;
+}
+
+.reply-form .input-box {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 0.3rem;
+}
+
+.reply-form .char-count {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}

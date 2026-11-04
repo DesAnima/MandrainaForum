@@ -1,6 +1,7 @@
 <?php
 // models/Publicacion.php
 require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/Respuesta.php';
 
 class Publicacion
 {
@@ -24,13 +25,17 @@ class Publicacion
                 fecha_actualizacion TIMESTAMP
             )
         ");
+        // El listado cuenta las respuestas de cada publicación.
+        Respuesta::crearTabla($this->pdo);
     }
 
     public function getAll(): array
     {
         $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,
                        p.fecha_creacion, p.fecha_actualizacion,
-                       u.nickname
+                       u.nickname,
+                       (SELECT COUNT(*) FROM respuestas r
+                        WHERE r.publicacion_id = p.id)::int AS total_respuestas
                 FROM publicaciones p
                 JOIN usuarios u ON u.id = p.user_id
                 ORDER BY p.fecha_creacion DESC";
@@ -42,7 +47,9 @@ class Publicacion
     {
         $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,
                        p.fecha_creacion, p.fecha_actualizacion,
-                       u.nickname
+                       u.nickname,
+                       (SELECT COUNT(*) FROM respuestas r
+                        WHERE r.publicacion_id = p.id)::int AS total_respuestas
                 FROM publicaciones p
                 JOIN usuarios u ON u.id = p.user_id
                 WHERE p.id = :id";

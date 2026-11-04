@@ -6,10 +6,12 @@
 // así no se pierden mensajes si la API publica antes de que arranque el worker):
 //
 //   exchange  mandraina.eventos (topic, durable)
-//      └─ routing key "publicacion.*" ─► cola mandraina.publicaciones
+//      ├─ routing key "publicacion.*" ─┐
+//      └─ routing key "respuesta.*"  ──┴► cola mandraina.publicaciones
 //                                          └─ si un mensaje falla ─► mandraina.publicaciones.dlq
 //
 // Eventos: publicacion.creada | publicacion.editada | publicacion.eliminada
+//          respuesta.creada | respuesta.eliminada
 
 require_once __DIR__ . '/../config/rabbitmq.php';
 
@@ -22,7 +24,7 @@ class Cola
     public const EXCHANGE = 'mandraina.eventos';
     public const QUEUE = 'mandraina.publicaciones';
     public const DLQ = 'mandraina.publicaciones.dlq';
-    public const BINDING_KEY = 'publicacion.*';
+    public const BINDING_KEYS = ['publicacion.*', 'respuesta.*'];
 
     public static function declararTopologia(AMQPChannel $ch): void
     {
@@ -36,7 +38,9 @@ class Cola
             'x-dead-letter-exchange' => '',               // exchange por defecto...
             'x-dead-letter-routing-key' => self::DLQ,     // ...enruta directo a la DLQ por nombre
         ]));
-        $ch->queue_bind(self::QUEUE, self::EXCHANGE, self::BINDING_KEY);
+        foreach (self::BINDING_KEYS as $clave) {
+            $ch->queue_bind(self::QUEUE, self::EXCHANGE, $clave);
+        }
     }
 
     /**

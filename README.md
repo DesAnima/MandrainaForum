@@ -135,6 +135,26 @@ Cualquier error no controlado devuelve `500` con un JSON estandarizado
 (`{"error": "...", "detalle": "..."}`), capturado por un `set_exception_handler`
 centralizado en `api/v1/publicaciones.php`.
 
+
+### Respuestas a publicaciones
+
+Base: `/api/v1/respuestas.php` (el panel usa esta URL directa, así que no
+depende de reglas de `.htaccess`).
+
+| Método | Ruta                                          | Descripción                                   | Códigos                         |
+|--------|-----------------------------------------------|-----------------------------------------------|---------------------------------|
+| GET    | `/api/v1/respuestas.php?publicacion_id={id}`  | Respuestas de una publicación (más viejas primero) | 200 / 400 / 404            |
+| POST   | `/api/v1/respuestas.php`                      | Responder (`{publicacion_id, contenido}`, requiere sesión) | 201 / 400 / 401 / 404 / 429 |
+| DELETE | `/api/v1/respuestas.php?id={id}`              | Eliminar una respuesta propia                 | 204 / 400 / 401 / 403 / 404     |
+
+Las respuestas son de un solo nivel (se responde a la publicación, no a otra
+respuesta), con un máximo de 500 caracteres y el mismo saneado de texto que
+las publicaciones (`includes/Texto.php`). El listado de publicaciones agrega
+`total_respuestas` a cada una. Cada alta o baja invalida la caché del feed y
+publica `respuesta.creada` / `respuesta.eliminada` en RabbitMQ; el worker
+registra en `moderacion_log` las respuestas con lenguaje vulgar. La tabla
+`respuestas` se crea sola (ver también `migrations/004_respuestas.sql`).
+
 ## Redis
 
 Es opcional: sin `REDIS_URL` la app funciona igual, solo que sin estas mejoras.

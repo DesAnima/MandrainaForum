@@ -5,7 +5,7 @@
 //     php worker/consumer.php
 //
 // (en docker-compose es el servicio "worker"). Por cada evento de
-// publicaciones (creada / editada / eliminada) hace dos tareas secundarias
+// publicaciones y respuestas (creada / editada / eliminada) hace dos tareas secundarias
 // que no tienen por qué demorar la respuesta de la API:
 //
 //   1. Moderación: si el texto tiene lenguaje vulgar (FiltroContenido), deja
@@ -26,6 +26,7 @@ if (PHP_SAPI !== 'cli') {
 require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/Feed.php';
 require_once __DIR__ . '/../models/Publicacion.php';
+require_once __DIR__ . '/../models/Respuesta.php';
 
 use PhpAmqpLib\Exception\AMQPTimeoutException;
 use PhpAmqpLib\Message\AMQPMessage;
@@ -51,7 +52,7 @@ function asegurarTablaModeracion(PDO $pdo): void
     ");
 }
 
-function procesarEvento(array $evento, Publicacion $modelo, PDO $pdo): void
+function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuestas, PDO $pdo): void
 {
     $tipo = (string) ($evento['evento'] ?? '');
     $id = (int) ($evento['publicacion_id'] ?? 0);
@@ -73,6 +74,25 @@ function procesarEvento(array $evento, Publicacion $modelo, PDO $pdo): void
         }
     }
 
+    if ($tipo === 'respuesta.creada' && $id > 0) {
+        $rid = (int) ($evento['respuesta_id'] ?? 0);
+        $respuesta = $rid > 0 ? $respuestas->getById($rid) : null;
+        if ($respuesta && FiltroContenido::esVulgar($respuesta['contenido'])) {
+            // El registro queda asociado a la publicación a la que se respondió.
+            $stmt = $pdo->prepare("
+                INSERT INTO moderacion_log (publicacion_id, user_id, evento, motivo)
+                VALUES (:pid, :uid, :evento, :motivo)
+            ");
+            $stmt->execute([
+                ':pid' => $id,
+                ':uid' => (int) $respuesta['user_id'],
+                ':evento' => $tipo,
+                ':motivo' => 'lenguaje_vulgar_en_respuesta',
+            ]);
+            logw("Moderación: respuesta #{$rid} (publicación #{$id}) marcada por lenguaje vulgar.");
+        }
+    }
+
     Feed::precalentar($modelo);
     logw("Procesado {$tipo} #{$id}; caché del feed recalentada.");
 }
@@ -84,6 +104,7 @@ while (true) {
         $pdo = getPDO();
         asegurarTablaModeracion($pdo);
         $modelo = new Publicacion();
+        $respuestas = new Respuesta();
 
         // read_write_timeout (65) > timeout de wait() (30): el wait() corta
         // primero y el bucle sigue, en vez de matar la conexión por inactividad.
@@ -92,7 +113,7 @@ while (true) {
         Cola::declararTopologia($ch);
         $ch->basic_qos(null, 1, null); // un mensaje a la vez
 
-        $callback = function (AMQPMessage $msg) use ($modelo, $pdo): void {
+        $callback = function (AMQPMessage $msg) use ($modelo, $respuestas, $pdo): void {
             $evento = json_decode($msg->getBody(), true);
 
             if (!is_array($evento)) {
@@ -102,7 +123,7 @@ while (true) {
             }
 
             try {
-                procesarEvento($evento, $modelo, $pdo);
+                procesarEvento($evento, $modelo, $respuestas, $pdo);
                 $msg->ack();
             } catch (Throwable $e) {
                 logw('ERROR procesando evento: ' . get_class($e) . ': ' . $e->getMessage());

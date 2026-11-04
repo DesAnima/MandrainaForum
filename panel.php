@@ -44,6 +44,7 @@ require_once __DIR__ . '/includes/auth_check.php';
 
     <script>
         const API_URL = 'api/v1/publicaciones';
+        const RESPUESTAS_URL = 'api/v1/respuestas.php';
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
 
         const feedEl = document.getElementById('feed');
@@ -129,9 +130,113 @@ require_once __DIR__ . '/includes/auth_check.php';
                             <button class="btn-link delete-btn" data-id="${post.id}">Eliminar</button>
                         </div>
                     ` : ''}
+                    <div class="post-replies-bar">
+                        <button type="button" class="btn-link replies-toggle">💬 Respuestas (${Number(post.total_respuestas) || 0})</button>
+                    </div>
+                    <section class="replies" hidden>
+                        <div class="replies-list"></div>
+                        <form class="reply-form" data-id="${post.id}">
+                            <textarea class="input-box reply-input" rows="2" maxlength="500" placeholder="Escribí una respuesta..." required></textarea>
+                            <small class="char-count reply-count">0 / 500</small>
+                            <button type="submit" class="btn btn-login btn-small">Responder</button>
+                        </form>
+                    </section>
                 </article>
             `;
         }
+
+        function renderRespuesta(r) {
+            const esPropia = Number(r.user_id) === currentUserId;
+            const sensible = r.contenido_sensible === true;
+            const fecha = new Date(r.fecha_creacion).toLocaleString();
+
+            return `
+                <div class="reply" data-id="${r.id}">
+                    <div class="reply-header">
+                        <span class="post-author">
+                            <img class="avatar avatar-sm" src="avatar.php?id=${Number(r.user_id)}" alt="" loading="lazy" />
+                            <strong>${escapeHtml(r.nickname)}</strong>
+                        </span>
+                        <span class="post-date">${fecha}</span>
+                    </div>
+                    ${sensible ? `
+                        <div class="sensible-box">
+                            <p>⚠️ Esta respuesta contiene lenguaje sensible.</p>
+                            <button type="button" class="btn-link reveal-reply-btn">Mostrar contenido</button>
+                        </div>
+                    ` : ''}
+                    <p class="reply-body" ${sensible ? 'hidden' : ''}>${escapeHtml(r.contenido)}</p>
+                    ${esPropia ? `<button type="button" class="btn-link delete-reply-btn" data-id="${r.id}">Eliminar</button>` : ''}
+                </div>
+            `;
+        }
+
+        async function cargarRespuestas(card) {
+            const lista = card.querySelector('.replies-list');
+            lista.textContent = 'Cargando respuestas...';
+
+            try {
+                const res = await fetch(`${RESPUESTAS_URL}?publicacion_id=${card.dataset.id}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    lista.textContent = data.error || 'No se pudieron cargar las respuestas.';
+                    return;
+                }
+
+                lista.innerHTML = data.length
+                    ? data.map(renderRespuesta).join('')
+                    : '<p class="replies-empty">Todavía no hay respuestas.</p>';
+                card.querySelector('.replies-toggle').textContent = `💬 Respuestas (${data.length})`;
+            } catch (err) {
+                console.error('Error al cargar respuestas:', err);
+                lista.textContent = 'Error de red al cargar las respuestas.';
+            }
+        }
+
+        feedEl.addEventListener('input', (e) => {
+            if (!e.target.classList.contains('reply-input')) return;
+            const contador = e.target.closest('.reply-form').querySelector('.reply-count');
+            contador.textContent = `${e.target.value.length} / ${e.target.maxLength}`;
+        });
+
+        feedEl.addEventListener('submit', async (e) => {
+            const form = e.target.closest('.reply-form');
+            if (!form) return;
+            e.preventDefault();
+
+            const card = form.closest('.post-card');
+            const input = form.querySelector('.reply-input');
+            const boton = form.querySelector('button[type="submit"]');
+            const payload = {
+                publicacion_id: Number(form.dataset.id),
+                contenido: input.value.trim(),
+            };
+
+            boton.disabled = true;
+            try {
+                const res = await fetch(RESPUESTAS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    alert(data.error || 'No se pudo guardar la respuesta.');
+                    return;
+                }
+
+                input.value = '';
+                form.querySelector('.reply-count').textContent = `0 / ${input.maxLength}`;
+                cargarRespuestas(card);
+            } catch (err) {
+                console.error('Error al guardar la respuesta:', err);
+                alert('Error de red al guardar la respuesta.');
+            } finally {
+                boton.disabled = false;
+            }
+        });
 
         function resetForm() {
             idField.value = '';
@@ -179,6 +284,42 @@ require_once __DIR__ . '/includes/auth_check.php';
         cancelBtn.addEventListener('click', resetForm);
 
         feedEl.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('replies-toggle')) {
+                const card = e.target.closest('.post-card');
+                const seccion = card.querySelector('.replies');
+                seccion.hidden = !seccion.hidden;
+                if (!seccion.hidden) cargarRespuestas(card);
+                return;
+            }
+
+            if (e.target.classList.contains('reveal-reply-btn')) {
+                const cuerpo = e.target.closest('.reply').querySelector('.reply-body');
+                cuerpo.hidden = !cuerpo.hidden;
+                e.target.textContent = cuerpo.hidden ? 'Mostrar contenido' : 'Ocultar contenido';
+                return;
+            }
+
+            if (e.target.classList.contains('delete-reply-btn')) {
+                if (!confirm('¿Seguro que querés eliminar esta respuesta?')) return;
+                const card = e.target.closest('.post-card');
+
+                try {
+                    const res = await fetch(`${RESPUESTAS_URL}?id=${e.target.dataset.id}`, { method: 'DELETE' });
+
+                    if (res.status !== 204) {
+                        const data = await res.json();
+                        alert(data.error || 'No se pudo eliminar la respuesta.');
+                        return;
+                    }
+
+                    cargarRespuestas(card);
+                } catch (err) {
+                    console.error('Error al eliminar la respuesta:', err);
+                    alert('Error de red al eliminar la respuesta.');
+                }
+                return;
+            }
+
             if (e.target.classList.contains('reveal-btn')) {
                 const body = e.target.closest('.post-card').querySelector('.post-body');
                 body.hidden = !body.hidden;
