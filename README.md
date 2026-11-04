@@ -270,6 +270,17 @@ se detiene con él; los eventos quedan en la cola durable de CloudAMQP y se
 procesan cuando el servicio vuelve a despertar. Para una versión sin
 dormirse hace falta una instancia paga.
 
+## Diseño responsive
+
+Todas las páginas se adaptan a celular, tablet y escritorio con CSS puro
+(`styles.css` para login, registro y claim; `panel.css` para panel y perfil).
+Puntos de corte: 1024 px (el login pasa a una columna), 760 px (el panel pasa
+a una columna y la barra de tags se vuelve una fila deslizable), 600 px y
+480 px (la cabecera se apila y los campos ocupan todo el ancho). Además:
+`box-sizing: border-box` global, campos con 16 px para que iOS no haga zoom
+al enfocar, `100dvh` para la barra del navegador móvil, zonas de toque más
+grandes en pantallas táctiles y respeto por `prefers-reduced-motion`.
+
 ## Roadmap (AE2 / TIFAS)
 
 - Despliegue completo sin Docker (web + worker + Redis + RabbitMQ gestionados).

@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.0.3/qrcode.min.js"></script>
     <style>
         #qr-box { display: none; text-align: center; margin-top: 1rem; }
-        #qr-box svg { display: block; margin: 0 auto; width: 240px; height: 240px; border-radius: 8px; }
+        #qr-box svg { display: block; margin: 0 auto; width: min(240px, 100%); height: auto; aspect-ratio: 1 / 1; border-radius: 8px; }
         #qr-timer { color: #ffd900; font-weight: bold; margin-top: 0.5rem; }
         #qr-link { display:block; margin-top:0.5rem; font-size:0.85rem; word-break:break-all; color:#fff; }
         #form-error { color: #ff5c5c; min-height: 1.2rem; }
