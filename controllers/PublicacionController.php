@@ -5,8 +5,6 @@ require_once __DIR__ . '/../includes/Feed.php';
 require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
 require_once __DIR__ . '/../includes/Texto.php';
-require_once __DIR__ . '/../includes/Tags.php';
-require_once __DIR__ . '/../includes/FiltroContenido.php';
 
 class PublicacionController
 {
@@ -56,28 +54,6 @@ class PublicacionController
         return [$titulo, $contenido];
     }
 
-    // Devuelve los tags normalizados o responde 400.
-    private function validarTags(mixed $valor): array
-    {
-        $tags = Tags::parsear($valor);
-
-        if (count($tags) > Tags::MAX_POR_PUBLICACION) {
-            $this->jsonResponse(400, ['error' => 'Podés usar hasta ' . Tags::MAX_POR_PUBLICACION . ' tags por publicación.']);
-        }
-
-        foreach ($tags as $tag) {
-            if (mb_strlen($tag) > Tags::LARGO_MAX) {
-                $this->jsonResponse(400, ['error' => 'Cada tag puede tener hasta ' . Tags::LARGO_MAX . ' caracteres.']);
-            }
-
-            if (FiltroContenido::esVulgar($tag)) {
-                $this->jsonResponse(400, ['error' => 'El tag "' . $tag . '" no está permitido.']);
-            }
-        }
-
-        return $tags;
-    }
-
     private function requireAuth(): int
     {
         if (empty($_SESSION['user_id'])) {
@@ -102,28 +78,7 @@ class PublicacionController
     {
         $feed = Feed::obtener(fn() => $this->model(), $hit);
         header('X-Cache: ' . ($hit ? 'HIT' : 'MISS'));
-
-        // ?tag=musica: solo las publicaciones con ese tag. El filtro se aplica
-        // sobre el feed cacheado, así que no cuesta una consulta extra.
-        $filtro = isset($_GET['tag']) && is_string($_GET['tag'])
-            ? (Tags::parsear($_GET['tag'])[0] ?? null)
-            : null;
-
-        if ($filtro !== null) {
-            $feed = array_values(array_filter(
-                $feed,
-                fn($p) => in_array($filtro, $p['tags'] ?? [], true)
-            ));
-        }
-
         $this->jsonResponse(200, $feed);
-    }
-
-    // GET /api/v1/tags.php: tags en los que participa el usuario.
-    public function misTags(): void
-    {
-        $userId = $this->requireAuth();
-        $this->jsonResponse(200, $this->model()->tagsDeParticipacion($userId));
     }
 
     public function show(int $id): void
@@ -147,9 +102,8 @@ class PublicacionController
         }
 
         [$titulo, $contenido] = $this->validarCampos($body);
-        $tags = $this->validarTags($body['tags'] ?? []);
 
-        $nueva = $this->model()->create($userId, $titulo, $contenido, $tags);
+        $nueva = $this->model()->create($userId, $titulo, $contenido);
         $this->notificarCambio('publicacion.creada', (int) $nueva['id'], $userId);
         $this->jsonResponse(201, Feed::marcar($nueva));
     }
@@ -168,9 +122,8 @@ class PublicacionController
         }
 
         [$titulo, $contenido] = $this->validarCampos($body);
-        $tags = array_key_exists('tags', $body) ? $this->validarTags($body['tags']) : null;
 
-        $actualizada = $this->model()->update($id, $titulo, $contenido, $tags);
+        $actualizada = $this->model()->update($id, $titulo, $contenido);
         $this->notificarCambio('publicacion.editada', $id, $userId);
         $this->jsonResponse(200, Feed::marcar($actualizada));
     }
