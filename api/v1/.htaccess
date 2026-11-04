@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# /api/v1/publicaciones/5  ->  publicaciones.php?id=5
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^publicaciones/([0-9]+)/?$ publicaciones.php?id=$1 [QSA,L]
+
+# /api/v1/publicaciones  ->  publicaciones.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^publicaciones/?$ publicaciones.php [QSA,L]
+
+# /api/v1/health  ->  health.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^health/?$ health.php [QSA,L]
