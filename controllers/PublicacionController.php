@@ -11,6 +11,11 @@ class PublicacionController
     private const POSTS_MAX = 10;
     private const POSTS_VENTANA = 60; // segundos
 
+    // Límites de longitud en caracteres. Deben coincidir con los maxlength
+    // del formulario de panel.php.
+    private const TITULO_MAX = 100;
+    private const CONTENIDO_MAX = 2000;
+
     private ?Publicacion $model = null;
 
     // El modelo se crea recién cuando hace falta: así un GET del feed que
@@ -25,6 +30,51 @@ class PublicacionController
         http_response_code($status);
         echo json_encode($data);
         exit;
+    }
+
+    // Normaliza un texto: quita caracteres invisibles y de control, colapsa
+    // los espacios repetidos y deja como máximo dos saltos de línea seguidos.
+    // Con $unaLinea (el título) los saltos de línea pasan a ser espacios.
+    private function limpiarTexto(mixed $valor, bool $unaLinea = false): string
+    {
+        $texto = is_string($valor) ? $valor : '';
+        $texto = str_replace(["\r\n", "\r"], "\n", $texto);
+        $texto = preg_replace(
+            '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\x{00AD}\x{115F}\x{1160}\x{200B}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{2800}\x{3164}\x{FEFF}\x{FFA0}]/u',
+            '',
+            $texto
+        ) ?? '';
+
+        if ($unaLinea) {
+            $texto = preg_replace('/\s+/u', ' ', $texto) ?? '';
+        } else {
+            $texto = preg_replace('/\h+/u', ' ', $texto) ?? '';
+            $texto = preg_replace('/ ?\n ?/', "\n", $texto) ?? '';
+            $texto = preg_replace('/\n{3,}/', "\n\n", $texto) ?? '';
+        }
+
+        return trim($texto);
+    }
+
+    // Devuelve [titulo, contenido] ya normalizados o responde 400.
+    private function validarCampos(array $body): array
+    {
+        $titulo = $this->limpiarTexto($body['titulo'] ?? '', true);
+        $contenido = $this->limpiarTexto($body['contenido'] ?? '');
+
+        if ($titulo === '' || $contenido === '') {
+            $this->jsonResponse(400, ['error' => 'Los campos "titulo" y "contenido" son obligatorios.']);
+        }
+
+        if (mb_strlen($titulo) > self::TITULO_MAX) {
+            $this->jsonResponse(400, ['error' => 'El título no puede superar los ' . self::TITULO_MAX . ' caracteres.']);
+        }
+
+        if (mb_strlen($contenido) > self::CONTENIDO_MAX) {
+            $this->jsonResponse(400, ['error' => 'El contenido no puede superar los ' . self::CONTENIDO_MAX . ' caracteres.']);
+        }
+
+        return [$titulo, $contenido];
     }
 
     private function requireAuth(): int
@@ -74,12 +124,7 @@ class PublicacionController
             $this->jsonResponse(429, ['error' => 'Estás publicando demasiado rápido. Esperá un minuto.']);
         }
 
-        $titulo = trim($body['titulo'] ?? '');
-        $contenido = trim($body['contenido'] ?? '');
-
-        if ($titulo === '' || $contenido === '') {
-            $this->jsonResponse(400, ['error' => 'Los campos "titulo" y "contenido" son obligatorios.']);
-        }
+        [$titulo, $contenido] = $this->validarCampos($body);
 
         $nueva = $this->model()->create($userId, $titulo, $contenido);
         $this->notificarCambio('publicacion.creada', (int) $nueva['id'], $userId);
@@ -99,12 +144,7 @@ class PublicacionController
             $this->jsonResponse(403, ['error' => 'No podés editar una publicación que no te pertenece.']);
         }
 
-        $titulo = trim($body['titulo'] ?? '');
-        $contenido = trim($body['contenido'] ?? '');
-
-        if ($titulo === '' || $contenido === '') {
-            $this->jsonResponse(400, ['error' => 'Los campos "titulo" y "contenido" son obligatorios.']);
-        }
+        [$titulo, $contenido] = $this->validarCampos($body);
 
         $actualizada = $this->model()->update($id, $titulo, $contenido);
         $this->notificarCambio('publicacion.editada', $id, $userId);

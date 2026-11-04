@@ -26,8 +26,10 @@ require_once __DIR__ . '/includes/auth_check.php';
             <h2 id="form-title">Nueva publicación</h2>
             <form id="post-form">
                 <input type="hidden" id="post-id" value="" />
-                <input type="text" id="titulo" class="input-box" placeholder="Título" required />
-                <textarea id="contenido" class="input-box" placeholder="¿Qué querés contar?" rows="3" required></textarea>
+                <input type="text" id="titulo" class="input-box" placeholder="Título" maxlength="100" required />
+                <small class="char-count" id="titulo-count">0 / 100</small>
+                <textarea id="contenido" class="input-box" placeholder="¿Qué querés contar?" rows="3" maxlength="2000" required></textarea>
+                <small class="char-count" id="contenido-count">0 / 2000</small>
                 <div class="post-form-actions">
                     <button type="submit" class="btn btn-login" id="submit-btn">Publicar</button>
                     <button type="button" class="btn btn-register" id="cancel-edit-btn" hidden>Cancelar</button>
@@ -53,6 +55,16 @@ require_once __DIR__ . '/includes/auth_check.php';
         const submitBtn = document.getElementById('submit-btn');
         const cancelBtn = document.getElementById('cancel-edit-btn');
         const formTitle = document.getElementById('form-title');
+        const tituloCount = document.getElementById('titulo-count');
+        const contenidoCount = document.getElementById('contenido-count');
+
+        function actualizarContadores() {
+            tituloCount.textContent = `${tituloField.value.length} / ${tituloField.maxLength}`;
+            contenidoCount.textContent = `${contenidoField.value.length} / ${contenidoField.maxLength}`;
+        }
+
+        tituloField.addEventListener('input', actualizarContadores);
+        contenidoField.addEventListener('input', actualizarContadores);
 
         // Escapa también las comillas: se usa dentro de atributos (data-titulo, data-contenido).
         function escapeHtml(str) {
@@ -125,6 +137,7 @@ require_once __DIR__ . '/includes/auth_check.php';
             idField.value = '';
             tituloField.value = '';
             contenidoField.value = '';
+            actualizarContadores();
             submitBtn.textContent = 'Publicar';
             formTitle.textContent = 'Nueva publicación';
             cancelBtn.hidden = true;
@@ -177,6 +190,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                 idField.value = e.target.dataset.id;
                 tituloField.value = e.target.dataset.titulo;
                 contenidoField.value = e.target.dataset.contenido;
+                actualizarContadores();
                 submitBtn.textContent = 'Guardar cambios';
                 formTitle.textContent = 'Editar publicación';
                 cancelBtn.hidden = false;

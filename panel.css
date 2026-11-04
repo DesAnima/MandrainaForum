@@ -159,3 +159,16 @@
 .btn-link:hover {
     color: #fff;
 }
+
+.char-count {
+    display: block;
+    width: 80%;
+    text-align: right;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+}
+
+.post-body h3,
+.post-body p {
+    overflow-wrap: anywhere;
+}
