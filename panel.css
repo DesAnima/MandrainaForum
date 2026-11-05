@@ -85,6 +85,20 @@ html {
     text-align: center;
 }
 
+/* Pie del feed: "Cargando más..." / "No hay más publicaciones" y centinela del scroll infinito. */
+.feed-more {
+    min-height: 3rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.feed-more-text {
+    margin: 0;
+    padding: 0.6rem 0;
+    color: #fff;
+    opacity: 0.7;
+}
+
 .post-card {
     background: #0a0a0a;
     border: 2px solid #ffd900;

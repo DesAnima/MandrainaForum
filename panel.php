@@ -83,6 +83,7 @@ require_once __DIR__ . '/includes/Admin.php';
         <section id="feed" class="feed">
             <p id="feed-status">Cargando publicaciones...</p>
         </section>
+        <div id="feed-more" class="feed-more" aria-live="polite"></div>
     </main>
 
     <aside class="tags-bar tags-bar-general" aria-label="Tags generales">
@@ -103,6 +104,8 @@ require_once __DIR__ . '/includes/Admin.php';
         const NOVEDADES_URL = 'api/v1/novedades.php';
         const NOTIF_URL = 'api/v1/notificaciones.php';
         const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
+        const PAGINA = 10;          // publicaciones que se piden por vez al bajar
+        const MAX_REFRESCO = 100;   // tope de tarjetas que se refrescan en cada actualización en vivo
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
         const esAdmin = <?= Admin::esAdmin() ? 'true' : 'false' ?>;
 
@@ -195,6 +198,14 @@ require_once __DIR__ . '/includes/Admin.php';
             renderTagsBar();
             renderTagsGenerales();
             primeraCarga = true; // las tarjetas del nuevo filtro no son "novedades"
+            // Otro filtro, otro feed: se descarta lo cargado y la paginación en curso.
+            generacionFiltro++;
+            feedEl.innerHTML = '';
+            firmasPosts.clear();
+            hayMas = false;
+            errorMas = false;
+            cargandoMas = false;
+            actualizarPie();
             cargarPublicaciones();
         }
 
@@ -263,6 +274,12 @@ require_once __DIR__ . '/includes/Admin.php';
         let misReacciones = {};        // id de publicación -> 'like' | 'dislike' (solo las mías)
         let primeraCarga = true;       // la primera carga no resalta tarjetas como nuevas
         let seqFeed = 0;
+        let hayMas = false;           // quedan publicaciones más viejas sin cargar
+        let cargandoMas = false;      // hay una página pidiéndose al bajar
+        let errorMas = false;         // la última página falló: se ofrece reintentar
+        let generacionFiltro = 0;     // cambia con cada filtro, para descartar respuestas viejas
+
+        const pieEl = document.getElementById('feed-more');
 
         function mostrarEstado(texto) {
             feedEl.innerHTML = `<p id="feed-status">${escapeHtml(texto)}</p>`;
@@ -330,7 +347,7 @@ require_once __DIR__ . '/includes/Admin.php';
             }
         }
 
-        function reconciliarFeed(data) {
+        function reconciliarFeed(data, hayMasServidor = false) {
             // Fuera cualquier mensaje de estado ("Cargando...", "Todavía no hay...").
             feedEl.querySelectorAll(':scope > :not(.post-card)').forEach((n) => n.remove());
 
@@ -339,12 +356,19 @@ require_once __DIR__ . '/includes/Admin.php';
             );
 
             // Publicaciones que ya no están (borradas por su autora/autor o por moderación).
+            // La respuesta cubre solo las N más nuevas: las tarjetas más viejas que
+            // la última recibida están fuera de rango, no borradas, y se conservan.
             const vigentes = new Set(data.map((p) => String(p.id)));
+            const menorId = Number(data[data.length - 1].id);
+            let fueraDeRango = false;
             actuales.forEach((card, id) => {
-                if (!vigentes.has(id)) {
-                    card.remove();
-                    firmasPosts.delete(id);
+                if (vigentes.has(id)) return;
+                if (hayMasServidor && Number(id) < menorId) {
+                    fueraDeRango = true;
+                    return;
                 }
+                card.remove();
+                firmasPosts.delete(id);
             });
 
             let cursor = feedEl.firstElementChild;
@@ -376,7 +400,94 @@ require_once __DIR__ . '/includes/Admin.php';
                 if (estado) restaurarEstado(card, estado);
             }
 
+            hayMas = hayMasServidor || fueraDeRango;
             primeraCarga = false;
+        }
+
+        function urlFeed(params) {
+            const q = new URLSearchParams(params);
+            if (tagActivo !== null) q.set('tag', tagActivo);
+            return `${API_URL}?${q}`;
+        }
+
+        function idUltimaTarjeta() {
+            const t = feedEl.querySelectorAll(':scope > .post-card');
+            return t.length ? Number(t[t.length - 1].dataset.id) : null;
+        }
+
+        // Pie del feed: estado de la carga al bajar. Es también el "centinela"
+        // que el observador vigila para pedir la página siguiente.
+        const observadorPie = 'IntersectionObserver' in window
+            ? new IntersectionObserver((entradas) => {
+                if (entradas.some((e) => e.isIntersecting)) cargarMas();
+            }, { rootMargin: '600px 0px' })
+            : null;
+
+        function actualizarPie() {
+            if (!hayTarjetas()) {
+                pieEl.innerHTML = '';
+                return;
+            }
+            if (cargandoMas) {
+                pieEl.innerHTML = '<p class="feed-more-text">Cargando más publicaciones...</p>';
+            } else if (errorMas) {
+                pieEl.innerHTML = '<button type="button" class="btn-link" id="feed-more-retry">No se pudieron cargar más. Reintentar</button>';
+            } else if (hayMas) {
+                pieEl.innerHTML = observadorPie
+                    ? ''
+                    : '<button type="button" class="btn-link" id="feed-more-retry">Ver más publicaciones</button>';
+            } else {
+                pieEl.innerHTML = '<p class="feed-more-text">No hay más publicaciones.</p>';
+            }
+
+            // Se vuelve a observar para que dispare de nuevo si el pie sigue a la
+            // vista (pantalla alta o página corta) después de cargar.
+            if (observadorPie) {
+                observadorPie.unobserve(pieEl);
+                if (hayMas && !cargandoMas && !errorMas) observadorPie.observe(pieEl);
+            }
+        }
+
+        pieEl.addEventListener('click', (e) => {
+            if (e.target.closest('#feed-more-retry')) cargarMas();
+        });
+
+        // Pide las publicaciones anteriores a la última tarjeta cargada (cursor
+        // por id) y las agrega al final, sin tocar las que ya están.
+        async function cargarMas(limite = PAGINA) {
+            if (cargandoMas || !hayMas) return;
+            const antes = idUltimaTarjeta();
+            if (antes === null) return;
+
+            const gen = generacionFiltro;
+            cargandoMas = true;
+            errorMas = false;
+            actualizarPie();
+
+            try {
+                const res = await fetch(urlFeed({ antes, limite }), { cache: 'no-store' });
+                const data = await res.json();
+                if (gen !== generacionFiltro) return; // cambió el filtro mientras tanto
+                if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+                for (const post of data.publicaciones || []) {
+                    const id = String(post.id);
+                    if (feedEl.querySelector(`:scope > .post-card[data-id="${id}"]`)) continue;
+                    feedEl.appendChild(htmlADom(renderPost(post)));
+                    firmasPosts.set(id, firmaPost(post));
+                }
+                hayMas = data.hay_mas === true;
+            } catch (err) {
+                if (gen === generacionFiltro) {
+                    errorMas = true;
+                    console.error('Error al cargar más publicaciones:', err);
+                }
+            } finally {
+                if (gen === generacionFiltro) {
+                    cargandoMas = false;
+                    actualizarPie();
+                }
+            }
         }
 
         // silencioso = actualización en segundo plano: sin "Cargando..." y sin
@@ -386,7 +497,10 @@ require_once __DIR__ . '/includes/Admin.php';
             if (!silencioso && !hayTarjetas()) mostrarEstado('Cargando publicaciones...');
 
             try {
-                const url = tagActivo === null ? API_URL : `${API_URL}?tag=${encodeURIComponent(tagActivo)}`;
+                // Se refresca todo lo que ya está cargado (hasta MAX_REFRESCO) para que
+                // ediciones, borrados y contadores se vean en vivo también más abajo.
+                const cargadas = feedEl.querySelectorAll(':scope > .post-card').length;
+                const url = urlFeed({ limite: Math.min(MAX_REFRESCO, Math.max(PAGINA, cargadas)) });
                 // Mis reacciones van aparte: el feed es igual para todos (caché en Redis).
                 const [res, resReacc] = await Promise.all([
                     fetch(url, { cache: 'no-store' }),
@@ -408,15 +522,20 @@ require_once __DIR__ . '/includes/Admin.php';
                     return;
                 }
 
-                if (data.length === 0) {
+                const lista = Array.isArray(data.publicaciones) ? data.publicaciones : [];
+
+                if (lista.length === 0) {
                     firmasPosts.clear();
+                    hayMas = false;
+                    actualizarPie();
                     mostrarEstado(tagActivo === null
                         ? 'Todavía no hay publicaciones. ¡Sé el primero!'
                         : 'Todavía no hay publicaciones con ese tag.');
                     return;
                 }
 
-                reconciliarFeed(data);
+                reconciliarFeed(lista, data.hay_mas === true);
+                actualizarPie();
             } catch (err) {
                 console.error('Error al cargar publicaciones:', err);
                 if (!silencioso && !hayTarjetas()) mostrarEstado('Error de red al cargar publicaciones.');
@@ -1067,7 +1186,20 @@ require_once __DIR__ . '/includes/Admin.php';
                 await cargarPublicaciones({ silencioso: true });
             }
 
-            const card = feedEl.querySelector(`.post-card[data-id="${postId}"]`);
+            const buscar = () => feedEl.querySelector(`:scope > .post-card[data-id="${postId}"]`);
+            let card = buscar();
+
+            // Si todavía no está cargada, se baja de a tandas hasta alcanzarla (los
+            // ids bajan al ir hacia abajo: si ya pasamos su id, no existe más).
+            for (let i = 0; i < 40 && !card && hayMas && (idUltimaTarjeta() ?? 0) > postId && !errorMas; i++) {
+                if (cargandoMas) {
+                    await new Promise((r) => setTimeout(r, 200));
+                } else {
+                    await cargarMas(50);
+                }
+                card = buscar();
+            }
+
             if (!card) {
                 alert('Esa publicación ya no está disponible.');
                 return;

@@ -174,25 +174,30 @@ class PublicacionController
         ]);
     }
 
+    // GET /api/v1/publicaciones?limite=10&antes={id}&tag={tag}
+    // Una página del feed, de la más nueva a la más vieja:
+    //   limite  cuántas publicaciones (1 a Publicacion::LIMITE_MAX, por defecto Feed::PAGINA)
+    //   antes   id de la última publicación que el cliente ya tiene; devuelve las anteriores
+    //   tag     solo las publicaciones con ese tag
+    // Respuesta: {"publicaciones": [...], "hay_mas": bool, "siguiente": id|null}
     public function index(): void
     {
-        $feed = Feed::obtener(fn() => $this->model(), $hit);
-        header('X-Cache: ' . ($hit ? 'HIT' : 'MISS'));
+        $limite = isset($_GET['limite']) && is_string($_GET['limite'])
+            ? (int) $_GET['limite']
+            : Feed::PAGINA;
+        $limite = max(1, min(Publicacion::LIMITE_MAX, $limite));
 
-        // ?tag=musica: solo las publicaciones con ese tag. El filtro se aplica
-        // sobre el feed cacheado, así que no cuesta una consulta extra.
-        $filtro = isset($_GET['tag']) && is_string($_GET['tag'])
+        $antes = isset($_GET['antes']) && is_string($_GET['antes']) && ctype_digit($_GET['antes'])
+            ? (int) $_GET['antes']
+            : null;
+
+        $tag = isset($_GET['tag']) && is_string($_GET['tag'])
             ? (Tags::parsear($_GET['tag'])[0] ?? null)
             : null;
 
-        if ($filtro !== null) {
-            $feed = array_values(array_filter(
-                $feed,
-                fn($p) => in_array($filtro, $p['tags'] ?? [], true)
-            ));
-        }
-
-        $this->jsonResponse(200, $feed);
+        $pagina = Feed::pagina(fn() => $this->model(), $limite, $antes, $tag, $hit);
+        header('X-Cache: ' . ($hit ? 'HIT' : 'MISS'));
+        $this->jsonResponse(200, $pagina);
     }
 
     // GET /api/v1/tags.php: tags en los que participa el usuario.

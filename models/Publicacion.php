@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/Respuesta.php';
 require_once __DIR__ . '/Reaccion.php';
+require_once __DIR__ . '/../includes/Cache.php';
 
 class Publicacion
 {
@@ -13,6 +14,35 @@ class Publicacion
     // Al limpiar duplicados existentes: una publicación es copia de otra del
     // mismo usuario con igual título y contenido creada hasta este tiempo después.
     public const VENTANA_DUPLICADAS = 600; // segundos (10 minutos)
+
+    // Tope de publicaciones por página en el listado (paginación por cursor).
+    public const LIMITE_MAX = 100;
+
+    // Clave en Redis que recuerda que los índices ya se verificaron, así no
+    // se repite el CREATE INDEX IF NOT EXISTS en cada request.
+    private const CLAVE_INDICES = 'db:indices:v1';
+
+    // Consulta base de una publicación con su autor, conteos y tags. Los
+    // conteos se calculan solo para las filas que salen (ya limitadas), con un
+    // único acceso a reacciones por publicación.
+    private const SELECT_PUBLICACION = "
+        SELECT p.id, p.user_id, p.titulo, p.contenido,
+               p.fecha_creacion, p.fecha_actualizacion,
+               u.nickname,
+               (SELECT COUNT(*) FROM respuestas r
+                WHERE r.publicacion_id = p.id)::int AS total_respuestas,
+               rx.likes, rx.dislikes,
+               COALESCE((SELECT string_agg(pt.tag, ',' ORDER BY pt.tag)
+                         FROM publicacion_tags pt
+                         WHERE pt.publicacion_id = p.id), '') AS tags_csv
+        FROM publicaciones p
+        JOIN usuarios u ON u.id = p.user_id
+        CROSS JOIN LATERAL (
+            SELECT COUNT(*) FILTER (WHERE x.tipo = 'like')::int AS likes,
+                   COUNT(*) FILTER (WHERE x.tipo = 'dislike')::int AS dislikes
+            FROM reacciones x
+            WHERE x.publicacion_id = p.id
+        ) rx";
 
     private PDO $pdo;
 
@@ -45,6 +75,27 @@ class Publicacion
                 PRIMARY KEY (publicacion_id, tag)
             )
         ");
+        $this->asegurarIndices();
+    }
+
+    // Índices para las consultas calientes (ver migrations/008_indices.sql).
+    // Todos son IF NOT EXISTS; con Redis la verificación se hace una sola vez.
+    private function asegurarIndices(): void
+    {
+        if (Cache::obtener(self::CLAVE_INDICES) === true) {
+            return;
+        }
+
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_publicaciones_user ON publicaciones (user_id, id DESC)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_respuestas_publicacion ON respuestas (publicacion_id, fecha_creacion)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_respuestas_user ON respuestas (user_id)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_reacciones_publicacion_tipo ON reacciones (publicacion_id, tipo)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_reacciones_user ON reacciones (user_id)");
+        $this->pdo->exec("CREATE INDEX IF NOT EXISTS idx_publicacion_tags_tag_pub ON publicacion_tags (tag, publicacion_id)");
+        // El índice simple de la migración 005 queda redundante con el anterior.
+        $this->pdo->exec("DROP INDEX IF EXISTS idx_publicacion_tags_tag");
+
+        Cache::guardar(self::CLAVE_INDICES, true, 86400);
     }
 
     // Convierte la columna auxiliar tags_csv en la lista "tags".
@@ -111,44 +162,50 @@ class Publicacion
         return $this->pdo->query($sql)->fetchAll();
     }
 
-    public function getAll(): array
+    /**
+     * Una página del listado, de la más nueva a la más vieja. Paginación por
+     * cursor (keyset): "antes" es el id de la última publicación ya cargada y
+     * se piden las anteriores a esa. A diferencia de OFFSET, el costo no crece
+     * con la profundidad y no se repiten ni se saltan filas si alguien publica
+     * mientras se baja. Se pide una fila de más solo para saber si quedan más.
+     *
+     * @return array{0: array, 1: bool}  [publicaciones, hay_mas]
+     */
+    public function getPagina(int $limite, ?int $antes = null, ?string $tag = null): array
     {
-        $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,
-                       p.fecha_creacion, p.fecha_actualizacion,
-                       u.nickname,
-                       (SELECT COUNT(*) FROM respuestas r
-                        WHERE r.publicacion_id = p.id)::int AS total_respuestas,
-                       (SELECT COUNT(*) FROM reacciones x
-                        WHERE x.publicacion_id = p.id AND x.tipo = 'like')::int AS likes,
-                       (SELECT COUNT(*) FROM reacciones x
-                        WHERE x.publicacion_id = p.id AND x.tipo = 'dislike')::int AS dislikes,
-                       COALESCE((SELECT string_agg(pt.tag, ',' ORDER BY pt.tag)
-                                 FROM publicacion_tags pt
-                                 WHERE pt.publicacion_id = p.id), '') AS tags_csv
-                FROM publicaciones p
-                JOIN usuarios u ON u.id = p.user_id
-                ORDER BY p.fecha_creacion DESC";
-        $stmt = $this->pdo->query($sql);
-        return array_map([$this, 'armarFila'], $stmt->fetchAll());
+        $limite = max(1, min(self::LIMITE_MAX, $limite));
+        $donde = [];
+        $params = [];
+
+        if ($antes !== null) {
+            $donde[] = 'p.id < :antes';
+            $params[':antes'] = $antes;
+        }
+        if ($tag !== null) {
+            $donde[] = 'EXISTS (SELECT 1 FROM publicacion_tags f
+                                WHERE f.publicacion_id = p.id AND f.tag = :tag)';
+            $params[':tag'] = $tag;
+        }
+
+        $sql = self::SELECT_PUBLICACION
+            . ($donde ? ' WHERE ' . implode(' AND ', $donde) : '')
+            . ' ORDER BY p.id DESC LIMIT ' . ($limite + 1);
+
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        $filas = $stmt->fetchAll();
+
+        $hayMas = count($filas) > $limite;
+        if ($hayMas) {
+            array_pop($filas);
+        }
+
+        return [array_map([$this, 'armarFila'], $filas), $hayMas];
     }
 
     public function getById(int $id): ?array
     {
-        $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,
-                       p.fecha_creacion, p.fecha_actualizacion,
-                       u.nickname,
-                       (SELECT COUNT(*) FROM respuestas r
-                        WHERE r.publicacion_id = p.id)::int AS total_respuestas,
-                       (SELECT COUNT(*) FROM reacciones x
-                        WHERE x.publicacion_id = p.id AND x.tipo = 'like')::int AS likes,
-                       (SELECT COUNT(*) FROM reacciones x
-                        WHERE x.publicacion_id = p.id AND x.tipo = 'dislike')::int AS dislikes,
-                       COALESCE((SELECT string_agg(pt.tag, ',' ORDER BY pt.tag)
-                                 FROM publicacion_tags pt
-                                 WHERE pt.publicacion_id = p.id), '') AS tags_csv
-                FROM publicaciones p
-                JOIN usuarios u ON u.id = p.user_id
-                WHERE p.id = :id";
+        $sql = self::SELECT_PUBLICACION . ' WHERE p.id = :id';
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([':id' => $id]);
         $row = $stmt->fetch();
