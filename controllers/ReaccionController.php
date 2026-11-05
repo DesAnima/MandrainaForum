@@ -73,8 +73,9 @@ class ReaccionController
             $this->jsonResponse(403, ['error' => 'No podés reaccionar a tu propia publicación.']);
         }
 
-        if (!$this->model()->crear($publicacionId, $userId, $tipo)) {
-            $this->jsonResponse(409, ['error' => 'Ya reaccionaste a esta publicación.']);
+        // Una sola reacción por usuario: si tenía la contraria, se cambia.
+        if (!$this->model()->guardar($publicacionId, $userId, $tipo)) {
+            $this->jsonResponse(409, ['error' => 'Ya tenés esa reacción en esta publicación.']);
         }
 
         // Cambian los contadores del feed: se descarta la caché y se avisa a

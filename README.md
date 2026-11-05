@@ -45,13 +45,15 @@ Cada publicación tiene dos botones: 🍊 **mandarina** (like) y 🍅 **tomate**
 `(publicacion_id, user_id)` de la tabla `reacciones`:
 
 - No se puede reaccionar a la publicación propia (403).
-- Un usuario reacciona una sola vez por publicación; la reacción es
-  definitiva, no se cambia ni se quita (409).
+- Un usuario tiene una sola reacción por publicación: nunca las dos a la
+  vez. Puede cambiarla de mandarina a tomate (o al revés); repetir la misma
+  devuelve 409.
 - Solo aplica a publicaciones, no a respuestas.
 
 `GET /api/v1/reacciones.php` devuelve las reacciones del usuario (va aparte del
 feed, que es igual para todos y se cachea en Redis) y
-`POST /api/v1/reacciones.php` con `{publicacion_id, tipo}` reacciona. Los
+`POST /api/v1/reacciones.php` con `{publicacion_id, tipo}` reacciona o cambia
+la reacción. Los
 contadores (`likes`, `dislikes`) vienen en cada publicación del feed y se
 actualizan en vivo. Las animaciones (mandarinas que suben, tomate que se
 estrella contra la tarjeta) las ve solo quien hace clic, se eliminan al

@@ -327,17 +327,22 @@ require_once __DIR__ . '/includes/Admin.php';
         // publicación, definitiva, y ninguna sobre la publicación propia.
         function renderReacciones(post, esPropia) {
             const mia = misReacciones[post.id] || null;
-            const bloqueada = esPropia || mia !== null;
-            const motivo = esPropia
-                ? 'No podés reaccionar a tu propia publicación'
-                : (mia !== null ? 'Ya reaccionaste a esta publicación' : '');
-            const boton = (tipo, emoji, nombre, cantidad) => `
-                <button type="button" class="react-btn react-${tipo} ${mia === tipo ? 'is-active' : ''}"
-                        data-tipo="${tipo}" data-id="${post.id}" ${bloqueada ? 'disabled' : ''}
-                        title="${motivo || nombre}" aria-label="${nombre}: ${cantidad}">
+            // La reacción activa queda marcada y sin clic; el botón contrario
+            // sigue habilitado para cambiarla. Sobre la publicación propia no hay reacción.
+            const boton = (tipo, emoji, nombre, cantidad) => {
+                const activa = mia === tipo;
+                const bloqueado = esPropia || activa;
+                const titulo = esPropia
+                    ? 'No podés reaccionar a tu propia publicación'
+                    : (activa ? 'Tu reacción actual' : (mia !== null ? `Cambiar a ${nombre}` : nombre));
+                return `
+                <button type="button" class="react-btn react-${tipo} ${activa ? 'is-active' : ''}"
+                        data-tipo="${tipo}" data-id="${post.id}" ${bloqueado ? 'disabled' : ''}
+                        title="${titulo}" aria-label="${nombre}: ${cantidad}">
                     <span class="react-emoji" aria-hidden="true">${emoji}</span>
                     <span class="react-count">${cantidad}</span>
                 </button>`;
+            };
 
             return `
                 <div class="post-reactions">
@@ -433,7 +438,9 @@ require_once __DIR__ . '/includes/Admin.php';
             const tipo = btn.dataset.tipo;
             const id = Number(btn.dataset.id);
 
+            const estadoPrevio = [...botones].map((b) => b.disabled);
             botones.forEach((b) => { b.disabled = true; }); // evita el doble clic
+            let exito = false;
 
             try {
                 const res = await fetch(REACCIONES_URL, {
@@ -444,6 +451,7 @@ require_once __DIR__ . '/includes/Admin.php';
                 const data = await res.json().catch(() => ({}));
 
                 if (res.status === 201) {
+                    exito = true;
                     misReacciones[id] = tipo;
                     animarReaccion(tipo, origen, card);
                 } else {
@@ -453,6 +461,10 @@ require_once __DIR__ . '/includes/Admin.php';
                 console.error('Error al reaccionar:', err);
                 alert('Error de red al reaccionar.');
             }
+
+            // Si falló, los botones vuelven a su estado anterior (si salió bien,
+            // el refresco de abajo rehace la tarjeta con el estado nuevo).
+            if (!exito) botones.forEach((b, i) => { b.disabled = estadoPrevio[i]; });
 
             // Se refrescan contadores y estado de los botones.
             cargarPublicaciones({ silencioso: true });

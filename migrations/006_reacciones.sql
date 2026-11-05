@@ -6,7 +6,8 @@
 --
 --   psql "$DATABASE_URL" -f migrations/006_reacciones.sql
 --
--- La clave primaria impide que un usuario reaccione dos veces a lo mismo.
+-- La clave primaria deja una sola fila por usuario y publicación: no puede
+-- haber like y dislike a la vez, pero la fila se puede cambiar de uno a otro.
 
 CREATE TABLE IF NOT EXISTS reacciones (
     publicacion_id INTEGER NOT NULL REFERENCES publicaciones(id) ON DELETE CASCADE,

@@ -3,8 +3,8 @@
 // Likes (mandarina) y dislikes (tomate) de las publicaciones.
 //
 // La clave primaria (publicacion_id, user_id) garantiza a nivel de base de
-// datos que cada usuario reacciona UNA sola vez por publicación; la reacción
-// es definitiva (no se cambia ni se quita).
+// datos que cada usuario tiene UNA sola reacción por publicación: like o
+// dislike, nunca las dos a la vez. Puede cambiarla de una a otra.
 
 require_once __DIR__ . '/../config/db.php';
 
@@ -41,13 +41,19 @@ class Reaccion
         return $tipo === self::LIKE || $tipo === self::DISLIKE;
     }
 
-    /** Devuelve false si el usuario ya había reaccionado a esa publicación. */
-    public function crear(int $publicacionId, int $userId, string $tipo): bool
+    /**
+     * Registra la reacción o, si el usuario ya tenía la contraria, la cambia
+     * (una sola fila por usuario y publicación, así nunca hay like y dislike
+     * a la vez). Devuelve false si ya tenía exactamente esa reacción.
+     */
+    public function guardar(int $publicacionId, int $userId, string $tipo): bool
     {
         $stmt = $this->pdo->prepare("
             INSERT INTO reacciones (publicacion_id, user_id, tipo)
             VALUES (:pid, :uid, :tipo)
-            ON CONFLICT (publicacion_id, user_id) DO NOTHING
+            ON CONFLICT (publicacion_id, user_id) DO UPDATE
+                SET tipo = EXCLUDED.tipo, fecha_creacion = NOW()
+                WHERE reacciones.tipo <> EXCLUDED.tipo
         ");
         $stmt->execute([':pid' => $publicacionId, ':uid' => $userId, ':tipo' => $tipo]);
         return $stmt->rowCount() > 0;

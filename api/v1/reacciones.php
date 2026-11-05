@@ -3,8 +3,8 @@
 //   GET  /api/v1/reacciones.php   reacciones del usuario de la sesión
 //   POST /api/v1/reacciones.php   body: {publicacion_id, tipo: "like"|"dislike"}
 //
-// Una reacción por usuario y publicación, definitiva, y no se puede
-// reaccionar a la publicación propia.
+// Una sola reacción por usuario y publicación (like o dislike, nunca las dos):
+// se puede cambiar de una a otra. No se puede reaccionar a la publicación propia.
 
 require_once __DIR__ . '/../../includes/session.php';
 mandraina_session_start();
