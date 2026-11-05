@@ -397,53 +397,6 @@ require_once __DIR__ . '/includes/Admin.php';
             }
         }
 
-        // ---- Manchas de tomate ----
-        // Cuantos más tomates (dislikes) recibe una publicación, más manchas
-        // aparecen sobre su bloque de texto (ver .tomate-N en panel.css). Las
-        // mandarinas no influyen. La posición de las manchas sale del id, así
-        // cada publicación tiene las suyas y no cambian entre cargas.
-        function nivelTomate(n) {
-            n = Number(n) || 0;
-            if (n >= 12) return 5;
-            if (n >= 8) return 4;
-            if (n >= 5) return 3;
-            if (n >= 3) return 2;
-            if (n >= 1) return 1;
-            return 0;
-        }
-
-        function estiloTomate(id) {
-            const v = [];
-            for (let i = 1; i <= 12; i++) {
-                const azar = ((Number(id) * 9301 + i * 49297) % 233280) / 233280;
-                // x entre 8% y 92%, y entre 25% y 75%: las manchas quedan dentro del bloque.
-                const pos = i <= 6 ? 8 + azar * 84 : 25 + azar * 50;
-                v.push(`--${i <= 6 ? 'x' + i : 'y' + (i - 6)}:${Math.round(pos)}%`);
-            }
-            return v.join(';');
-        }
-
-        function atributosTomate(post) {
-            const nivel = nivelTomate(post.dislikes);
-            return nivel > 0 ? `tomate-${nivel}` : '';
-        }
-
-        // Para el cambio inmediato al reaccionar: lee el contador de la tarjeta.
-        function aplicarTomates(card) {
-            const cuerpo = card.querySelector('.post-body');
-            const contador = card.querySelector('.react-dislike .react-count');
-            if (!cuerpo || !contador) return;
-
-            const nivel = nivelTomate(contador.textContent);
-            cuerpo.className = cuerpo.className.replace(/\btomate-\d\b/g, '').trim();
-            if (nivel > 0) {
-                cuerpo.classList.add(`tomate-${nivel}`);
-                cuerpo.style.cssText = estiloTomate(card.dataset.id);
-            } else {
-                cuerpo.removeAttribute('style');
-            }
-        }
-
         // Mandarina = like, tomate = dislike. Una sola reacción por usuario y
         // publicación, definitiva, y ninguna sobre la publicación propia.
         function renderReacciones(post, esPropia) {
@@ -600,7 +553,6 @@ require_once __DIR__ . '/includes/Admin.php';
             const contador = (t) => card.querySelector(`.react-${t} .react-count`);
             if (reaccionPrevia) contador(reaccionPrevia).textContent = Math.max(0, Number(contador(reaccionPrevia).textContent) - 1);
             if (!quitar) contador(tipo).textContent = Number(contador(tipo).textContent) + 1;
-            aplicarTomates(card);
             card.querySelectorAll('.react-btn').forEach((b) => {
                 b.classList.toggle('is-active', !quitar && b.dataset.tipo === tipo);
                 b.disabled = true; // sin doble clic mientras responde el servidor
@@ -630,10 +582,7 @@ require_once __DIR__ . '/includes/Admin.php';
             const viva = tarjetaViva(id);
             if (error !== null) {
                 if (reaccionPrevia) misReacciones[id] = reaccionPrevia; else delete misReacciones[id];
-                if (viva) {
-                    viva.querySelector('.post-reactions').innerHTML = htmlPrevio;
-                    aplicarTomates(viva);
-                }
+                if (viva) viva.querySelector('.post-reactions').innerHTML = htmlPrevio;
                 alert(error);
             } else if (viva) {
                 viva.querySelectorAll('.react-btn').forEach((b) => { b.disabled = false; });
@@ -663,7 +612,7 @@ require_once __DIR__ . '/includes/Admin.php';
                             <button type="button" class="btn-link reveal-btn">Mostrar contenido</button>
                         </div>
                     ` : ''}
-                    <div class="post-body ${atributosTomate(post)}" ${nivelTomate(post.dislikes) > 0 ? `style="${estiloTomate(post.id)}"` : ''} ${sensible ? 'hidden' : ''}>
+                    <div class="post-body" ${sensible ? 'hidden' : ''}>
                         <h3>${escapeHtml(post.titulo)}</h3>
                         <p>${escapeHtml(post.contenido)}</p>
                     </div>
