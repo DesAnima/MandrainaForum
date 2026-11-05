@@ -56,5 +56,13 @@ function getPDO(): PDO
         throw new RuntimeException('Error de conexión a la base de datos.');
     }
 
+    // Las columnas TIMESTAMP no guardan zona horaria: todo se guarda en UTC y
+    // el panel lo convierte a hora argentina al mostrarlo (ver panel.php).
+    try {
+        $pdo->exec("SET TIME ZONE 'UTC'");
+    } catch (PDOException $e) {
+        error_log('[db] no se pudo fijar la zona horaria: ' . $e->getMessage());
+    }
+
     return $pdo;
 }

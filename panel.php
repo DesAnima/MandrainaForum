@@ -218,6 +218,32 @@ require_once __DIR__ . '/includes/Admin.php';
         tituloField.addEventListener('input', actualizarContadores);
         contenidoField.addEventListener('input', actualizarContadores);
 
+        // ---- Fechas en hora argentina ----
+        // El servidor guarda las fechas en UTC y las manda sin zona
+        // ("2026-11-05 03:22:11.123456"). Si el navegador las leyera tal cual
+        // las tomaría como hora local y mostraría 3 horas de más. Acá se leen
+        // como UTC y se muestran siempre en hora de Argentina, esté donde esté
+        // quien mira el panel.
+        const ZONA_HORARIA = 'America/Argentina/Buenos_Aires';
+
+        function leerFechaServidor(valor) {
+            if (!valor) return null;
+            let texto = String(valor).trim().replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+            if (!/(Z|[+-]\d{2}:?\d{2})$/.test(texto)) texto += 'Z'; // sin zona: es UTC
+            const fecha = new Date(texto);
+            return Number.isNaN(fecha.getTime()) ? null : fecha;
+        }
+
+        function formatearFecha(valor) {
+            const fecha = leerFechaServidor(valor);
+            if (!fecha) return '';
+            return fecha.toLocaleString('es-AR', {
+                timeZone: ZONA_HORARIA,
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', hour12: false,
+            }).replace(',', '');
+        }
+
         // Escapa también las comillas: se usa dentro de atributos (data-titulo, data-contenido).
         function escapeHtml(str) {
             return String(str ?? '')
@@ -595,7 +621,7 @@ require_once __DIR__ . '/includes/Admin.php';
         function renderPost(post) {
             const esPropia = Number(post.user_id) === currentUserId;
             const sensible = post.contenido_sensible === true;
-            const fecha = new Date(post.fecha_creacion).toLocaleString();
+            const fecha = formatearFecha(post.fecha_creacion);
 
             return `
                 <article class="post-card" data-id="${post.id}">
@@ -646,7 +672,7 @@ require_once __DIR__ . '/includes/Admin.php';
         function renderRespuesta(r) {
             const esPropia = Number(r.user_id) === currentUserId;
             const sensible = r.contenido_sensible === true;
-            const fecha = new Date(r.fecha_creacion).toLocaleString();
+            const fecha = formatearFecha(r.fecha_creacion);
 
             return `
                 <div class="reply" data-id="${r.id}">
@@ -959,11 +985,13 @@ require_once __DIR__ . '/includes/Admin.php';
         let seqNotif = 0;
 
         function fechaRelativa(valor) {
-            const seg = Math.max(0, Math.round((Date.now() - new Date(valor).getTime()) / 1000));
+            const fecha = leerFechaServidor(valor);
+            if (!fecha) return '';
+            const seg = Math.max(0, Math.round((Date.now() - fecha.getTime()) / 1000));
             if (seg < 60) return 'recién';
             if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
             if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
-            return new Date(valor).toLocaleDateString();
+            return formatearFecha(valor).split(' ')[0];
         }
 
         function renderNotificaciones() {

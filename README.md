@@ -169,6 +169,16 @@ Mi perfil, Duplicados (solo admin) y Cerrar sesión están dentro de un menú
 desplegable al hacer clic en tu avatar y nombre. Se cierra con un clic afuera
 o con Escape.
 
+## Fechas y hora argentina
+
+Las columnas de fecha son `TIMESTAMP` (sin zona horaria) y todo se guarda en
+**UTC**: `config/db.php` fija `SET TIME ZONE 'UTC'` en cada conexión. El panel
+lee esas fechas como UTC y las muestra siempre en hora de Argentina
+(`America/Argentina/Buenos_Aires`, formato `dd/mm/aaaa hh:mm`), sin importar la
+zona del navegador. Las notificaciones usan la misma conversión para el "hace
+5 min". Si la base de datos estuviera configurada en otra zona, conviene
+revisar con `SHOW timezone;`.
+
 ## Contenido sensible
 
 `includes/FiltroContenido.php` detecta lenguaje vulgar (español e
