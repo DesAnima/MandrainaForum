@@ -246,18 +246,6 @@ html {
     padding: 0;
 }
 
-.tags-bar-General {
-    width: 220px;
-    flex-shrink: 0;
-    position: sticky;
-    top: 1rem;
-    box-sizing: border-box;
-    background: #000;
-    border: 2px solid #ffd900;
-    border-radius: 10px;
-    padding: 1rem;
-    color: #fff;
-}
 .tags-bar {
     width: 220px;
     flex-shrink: 0;

@@ -35,11 +35,6 @@ require_once __DIR__ . '/includes/Admin.php';
         <ul id="tags-list" class="tags-list"></ul>
         <p id="tags-empty" class="tags-empty" hidden>Todavía no participás en ningún tag. Publicá o respondé en una publicación con tags y van a aparecer acá.</p>
     </aside>
-     <aside class="tags-bar-general" aria-label="Tags">
-        <h2>Tags Generales</h2>
-        <ul id="tags-list" class="tags-list"></ul>
-        <p id="tags-empty" class="tags-empty" hidden>Todavía no participás en ningún tag. Publicá o respondé en una publicación con tags y van a aparecer acá.</p>
-    </aside>
 
     <main class="panel-main">
         <section class="post-form-card">
