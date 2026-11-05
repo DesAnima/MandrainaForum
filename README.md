@@ -290,7 +290,10 @@ repetidos. Un tag vulgar se rechaza con 400. En un `PUT`, si no se envía
 |--------|---------------------------------------|----------------------------------------------------------------|
 | GET    | `/api/v1/publicaciones?tag={tag}`     | Solo las publicaciones con ese tag (consulta indexada, también paginada) |
 | GET    | `/api/v1/tags.php`                    | Tags en los que participa el usuario (publicó o respondió), con el total de publicaciones de cada uno. Requiere sesión |
-| GET    | `/api/v1/tags.php?alcance=general`    | Tags más usados por todos los usuarios (top 15), con el total de publicaciones de cada uno. Requiere sesión |
+| GET    | `/api/v1/tags.php?alcance=general`    | Tags fijados por el administrador y, después, los más usados (hasta 15): `{"tags": [{tag, total, fijado}], "total_tags": N}`. Si `total_tags` supera los que llegan, el panel muestra "Ver todos los tags". Requiere sesión |
+| GET    | `/api/v1/tags.php?alcance=todos`      | Todos los tags, con el mismo formato. Requiere sesión |
+| PUT    | `/api/v1/tags.php`                    | Fija un tag arriba en "Tags generales" (body `{"tag": "musica"}`, hasta 10 fijados). Solo admin |
+| DELETE | `/api/v1/tags.php?tag={tag}`          | Deja de fijar un tag. Solo admin |
 | GET    | `/api/v1/notificaciones.php`          | Avisos de respuestas a tus publicaciones: `{no_leidas, items}`. Requiere sesión |
 | POST   | `/api/v1/notificaciones.php`          | Marca avisos como leídos: sin body, todos; con `{"id": n}`, solo ese. Requiere sesión |
 

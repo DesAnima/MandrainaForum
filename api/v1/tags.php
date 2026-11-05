@@ -6,7 +6,14 @@
 // publicaciones que tiene cada tag.
 //
 // GET /api/v1/tags.php?alcance=general
-// Tags más usados por todos los usuarios, con su total de publicaciones.
+// Tags fijados por el administrador y, después, los más usados por todos
+// (hasta 15): {"tags": [{tag, total, fijado}], "total_tags": N}.
+//
+// GET /api/v1/tags.php?alcance=todos
+// Todos los tags, con el mismo formato.
+//
+// PUT    /api/v1/tags.php          body {"tag": "musica"}  fija un tag (solo admin)
+// DELETE /api/v1/tags.php?tag=musica                       lo deja de fijar (solo admin)
 
 require_once __DIR__ . '/../../includes/session.php';
 mandraina_session_start();
@@ -24,15 +31,28 @@ set_exception_handler(function (Throwable $e) {
     exit;
 });
 
-if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
-    http_response_code(405);
-    echo json_encode(['error' => 'Método no permitido.']);
-    exit;
-}
-
 $controller = new PublicacionController();
-if (($_GET['alcance'] ?? '') === 'general') {
-    $controller->tagsGenerales();
-} else {
-    $controller->misTags();
+
+switch ($_SERVER['REQUEST_METHOD']) {
+    case 'GET':
+        $alcance = $_GET['alcance'] ?? '';
+        if ($alcance === 'general' || $alcance === 'todos') {
+            $controller->tagsGenerales($alcance === 'todos');
+        } else {
+            $controller->misTags();
+        }
+        break;
+
+    case 'PUT':
+        $body = json_decode(file_get_contents('php://input'), true);
+        $controller->fijarTag(is_array($body) ? $body : []);
+        break;
+
+    case 'DELETE':
+        $controller->desfijarTag($_GET['tag'] ?? '');
+        break;
+
+    default:
+        http_response_code(405);
+        echo json_encode(['error' => 'Método no permitido.']);
 }

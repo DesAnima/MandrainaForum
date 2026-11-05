@@ -1106,3 +1106,100 @@ html {
         display: none;
     }
 }
+
+/* -------------------
+   TAGS GENERALES: fijados y "ver todos"
+------------------- */
+
+.tags-list li.tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.tag-row .tag-item {
+    flex: 1;
+    min-width: 0;
+}
+
+.tag-pin-marca {
+    margin-right: 0.3rem;
+    font-size: 0.75rem;
+}
+
+/* Botón del admin para fijar / dejar de fijar. */
+.tag-pin-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: #8a8a8a;
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0.4rem 0.45rem;
+}
+
+.tag-pin-btn:hover,
+.tag-pin-btn:focus-visible {
+    border-color: #ffd900;
+    color: #ffd900;
+    outline: none;
+}
+
+.tag-pin-btn.activo {
+    color: #ffd900;
+}
+
+.tags-ver-todos {
+    display: block;
+    width: 100%;
+    margin-top: 0.7rem;
+    text-align: center;
+}
+
+.tags-modal {
+    width: min(420px, calc(100vw - 2rem));
+    max-height: 80vh;
+    box-sizing: border-box;
+    padding: 1rem;
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    color: #fff;
+}
+
+.tags-modal[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.tags-modal::backdrop {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.tags-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+}
+
+.tags-modal-head h2 {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    color: #ffd900;
+    font-size: 1.05rem;
+}
+
+/* Siempre en columna con scroll vertical, también en celular (donde .tags-list va en fila). */
+.tags-modal .tags-list {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.tags-modal .tag-item {
+    white-space: normal;
+}

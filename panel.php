@@ -90,8 +90,18 @@ require_once __DIR__ . '/includes/Admin.php';
         <h2>Tags generales</h2>
         <ul id="tags-generales-list" class="tags-list"></ul>
         <p id="tags-generales-empty" class="tags-empty" hidden>Todavía nadie usó tags.</p>
+        <button type="button" class="btn-link tags-ver-todos" id="tags-ver-todos" hidden>Ver todos los tags</button>
     </aside>
     </div>
+
+    <dialog id="tags-modal" class="tags-modal" aria-labelledby="tags-modal-titulo">
+        <div class="tags-modal-head">
+            <h2 id="tags-modal-titulo">Todos los tags</h2>
+            <button type="button" class="btn-link" id="tags-modal-cerrar">Cerrar</button>
+        </div>
+        <ul id="tags-modal-list" class="tags-list"></ul>
+        <p id="tags-modal-estado" class="tags-empty"></p>
+    </dialog>
 
     <button type="button" id="btn-subir" class="btn-subir" aria-label="Volver arriba" title="Volver arriba" aria-hidden="true" tabindex="-1"><span class="btn-subir-flecha" aria-hidden="true">↑</span></button>
 
@@ -130,9 +140,16 @@ require_once __DIR__ . '/includes/Admin.php';
         let seqTags = 0;
         let misTags = [];
         let tagsGenerales = [];
+        let totalTagsGenerales = 0;   // cuántos tags existen en total (puede ser más de los que se muestran)
+        let tagsTodos = [];
         let seqTagsGenerales = 0;
+        let seqTagsTodos = 0;
         const tagsGeneralesList = document.getElementById('tags-generales-list');
         const tagsGeneralesEmpty = document.getElementById('tags-generales-empty');
+        const tagsVerTodos = document.getElementById('tags-ver-todos');
+        const tagsModal = document.getElementById('tags-modal');
+        const tagsModalList = document.getElementById('tags-modal-list');
+        const tagsModalEstado = document.getElementById('tags-modal-estado');
 
         function renderTagsBar() {
             const todas = `
@@ -151,16 +168,35 @@ require_once __DIR__ . '/includes/Admin.php';
             tagsEmpty.hidden = misTags.length > 0;
         }
 
-        function renderTagsGenerales() {
-            tagsGeneralesList.innerHTML = tagsGenerales.map((t) => `
-                <li>
+        // Una fila de los tags generales (también en "ver todos"). Los fijados llevan
+        // 📌 para todos; el admin además ve el botón para fijar o dejar de fijar.
+        function htmlTagGeneral(t) {
+            const marca = t.fijado
+                ? '<span class="tag-pin-marca" title="Fijado por el administrador" aria-label="Fijado">📌</span>'
+                : '';
+            const alternar = esAdmin
+                ? `<button type="button" class="tag-pin-btn ${t.fijado ? 'activo' : ''}" data-pin="${escapeHtml(t.tag)}" data-fijado="${t.fijado ? '1' : '0'}"
+                           title="${t.fijado ? 'Dejar de fijar' : 'Fijar arriba'}" aria-label="${t.fijado ? 'Dejar de fijar' : 'Fijar'} el tag ${escapeHtml(t.tag)}">${t.fijado ? '✕' : '📌'}</button>`
+                : '';
+            return `
+                <li class="tag-row">
                     <button type="button" class="tag-item ${tagActivo === t.tag ? 'active' : ''}" data-tag="${escapeHtml(t.tag)}">
-                        <span>#${escapeHtml(t.tag)}</span>
+                        <span>${marca}#${escapeHtml(t.tag)}</span>
                         <span class="tag-total">${Number(t.total)}</span>
                     </button>
+                    ${alternar}
                 </li>
-            `).join('');
+            `;
+        }
+
+        function renderTagsGenerales() {
+            tagsGeneralesList.innerHTML = tagsGenerales.map(htmlTagGeneral).join('');
             tagsGeneralesEmpty.hidden = tagsGenerales.length > 0;
+
+            // Si hay más tags de los que se muestran, se ofrece verlos todos.
+            const hayMasTags = totalTagsGenerales > tagsGenerales.length;
+            tagsVerTodos.hidden = !hayMasTags;
+            tagsVerTodos.textContent = `Ver todos los tags (${totalTagsGenerales})`;
         }
 
         async function cargarTagsGenerales() {
@@ -170,7 +206,8 @@ require_once __DIR__ . '/includes/Admin.php';
                 if (!res.ok) return;
                 const data = await res.json();
                 if (miSeq !== seqTagsGenerales) return; // llegó otra respuesta más nueva
-                tagsGenerales = data;
+                tagsGenerales = Array.isArray(data.tags) ? data.tags : [];
+                totalTagsGenerales = Number(data.total_tags) || tagsGenerales.length;
                 renderTagsGenerales();
             } catch (err) {
                 console.error('Error al cargar los tags generales:', err);
@@ -188,6 +225,82 @@ require_once __DIR__ . '/includes/Admin.php';
                 renderTagsBar();
             } catch (err) {
                 console.error('Error al cargar los tags:', err);
+            }
+        }
+
+        // ---- "Ver todos los tags" (ventana) ----
+        function renderTagsTodos() {
+            tagsModalList.innerHTML = tagsTodos.map(htmlTagGeneral).join('');
+            tagsModalEstado.textContent = tagsTodos.length ? '' : 'Todavía nadie usó tags.';
+        }
+
+        async function cargarTagsTodos() {
+            const miSeq = ++seqTagsTodos;
+            try {
+                const res = await fetch(`${TAGS_URL}?alcance=todos`, { cache: 'no-store' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                if (miSeq !== seqTagsTodos) return;
+                tagsTodos = Array.isArray(data.tags) ? data.tags : [];
+                renderTagsTodos();
+            } catch (err) {
+                if (miSeq !== seqTagsTodos) return;
+                console.error('Error al cargar todos los tags:', err);
+                tagsModalEstado.textContent = 'No se pudieron cargar los tags.';
+            }
+        }
+
+        function abrirModalTags() {
+            if (!tagsModal.open) tagsModal.showModal();
+            tagsModalEstado.textContent = tagsTodos.length ? '' : 'Cargando tags...';
+            renderTagsTodos();
+            cargarTagsTodos();
+        }
+
+        function cerrarModalTags() {
+            if (tagsModal.open) tagsModal.close();
+        }
+
+        tagsVerTodos.addEventListener('click', abrirModalTags);
+        document.getElementById('tags-modal-cerrar').addEventListener('click', cerrarModalTags);
+        tagsModal.addEventListener('click', (e) => {
+            if (e.target === tagsModal) cerrarModalTags(); // clic en el fondo oscuro
+        });
+
+        // Fijar / dejar de fijar un tag (solo admin; el servidor lo vuelve a verificar).
+        async function alternarFijado(tag, fijar) {
+            try {
+                const res = fijar
+                    ? await fetch(TAGS_URL, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tag }),
+                    })
+                    : await fetch(`${TAGS_URL}?tag=${encodeURIComponent(tag)}`, { method: 'DELETE' });
+
+                if (!res.ok) {
+                    let mensaje = null;
+                    try { mensaje = (await res.json()).error; } catch (_) {}
+                    alert(mensaje || 'No se pudo cambiar el tag fijado.');
+                    return;
+                }
+                await Promise.all([cargarTagsGenerales(), tagsModal.open ? cargarTagsTodos() : null]);
+            } catch (err) {
+                console.error('Error al fijar el tag:', err);
+                alert('Error de red al fijar el tag.');
+            }
+        }
+
+        function clicTagGeneral(e) {
+            const pin = e.target.closest('.tag-pin-btn');
+            if (pin) {
+                alternarFijado(pin.dataset.pin, pin.dataset.fijado !== '1');
+                return;
+            }
+            const boton = e.target.closest('.tag-item');
+            if (boton) {
+                cerrarModalTags();
+                seleccionarTag(boton.dataset.tag);
             }
         }
 
@@ -214,10 +327,8 @@ require_once __DIR__ . '/includes/Admin.php';
             if (boton) seleccionarTag(boton.dataset.tag);
         });
 
-        tagsGeneralesList.addEventListener('click', (e) => {
-            const boton = e.target.closest('.tag-item');
-            if (boton) seleccionarTag(boton.dataset.tag);
-        });
+        tagsGeneralesList.addEventListener('click', clicTagGeneral);
+        tagsModalList.addEventListener('click', clicTagGeneral);
 
         document.getElementById('feed-filter-clear').addEventListener('click', () => seleccionarTag(null));
 
@@ -1276,7 +1387,7 @@ require_once __DIR__ . '/includes/Admin.php';
                     versionRT = version; // primera lectura: punto de partida
                 } else if (version !== versionRT) {
                     versionRT = version;
-                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags(), cargarTagsGenerales(), cargarNotificaciones()]);
+                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags(), cargarTagsGenerales(), tagsModal.open ? cargarTagsTodos() : null, cargarNotificaciones()]);
                 }
             } catch (err) {
                 // Sin red o servidor caído: se reintenta en el próximo ciclo.

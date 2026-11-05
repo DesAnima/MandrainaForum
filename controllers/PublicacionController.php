@@ -207,11 +207,60 @@ class PublicacionController
         $this->jsonResponse(200, $this->model()->tagsDeParticipacion($userId));
     }
 
-    // GET /api/v1/tags.php?alcance=general: tags más usados por todos.
-    public function tagsGenerales(): void
+    // GET /api/v1/tags.php?alcance=general: los tags fijados por el admin y los más
+    // usados (hasta 15), más "total_tags" para saber si hay que ofrecer "ver todos".
+    // GET /api/v1/tags.php?alcance=todos: todos los tags, con el mismo formato.
+    public function tagsGenerales(bool $todos = false): void
     {
         $this->requireAuth();
-        $this->jsonResponse(200, $this->model()->tagsPopulares());
+        $limite = $todos ? Publicacion::LIMITE_TAGS_TODOS : Publicacion::LIMITE_TAGS_GENERALES;
+        $this->jsonResponse(200, $this->model()->tagsGenerales($limite));
+    }
+
+    // Tag normalizado a partir de lo que mandó el cliente, o responde 400.
+    private function tagDeEntrada(mixed $valor): string
+    {
+        $tag = is_string($valor) ? (Tags::parsear($valor)[0] ?? '') : '';
+        if ($tag === '' || mb_strlen($tag) > Tags::LARGO_MAX) {
+            $this->jsonResponse(400, ['error' => 'Falta un tag válido.']);
+        }
+        return $tag;
+    }
+
+    // PUT /api/v1/tags.php  body: {"tag": "musica"}   (solo admin)
+    // Deja el tag fijado arriba en "Tags generales". Es idempotente.
+    public function fijarTag(array $body): void
+    {
+        $userId = $this->requireAdmin();
+        $tag = $this->tagDeEntrada($body['tag'] ?? '');
+
+        if (!$this->model()->estaFijado($tag)) {
+            if (!$this->model()->existeTag($tag)) {
+                $this->jsonResponse(404, ['error' => 'Ese tag no existe.']);
+            }
+            if ($this->model()->cantidadFijados() >= Publicacion::MAX_FIJADOS) {
+                $this->jsonResponse(400, ['error' => 'Podés fijar hasta ' . Publicacion::MAX_FIJADOS . ' tags. Quitá alguno antes.']);
+            }
+            $this->model()->fijarTag($tag);
+            error_log("[admin] {$_SESSION['nickname']} (#{$userId}) fijó el tag #{$tag}");
+            TiempoReal::avisar(); // los paneles abiertos recargan sus tags
+        }
+
+        $this->jsonResponse(200, ['tag' => $tag, 'fijado' => true]);
+    }
+
+    // DELETE /api/v1/tags.php?tag=musica   (solo admin)
+    public function desfijarTag(mixed $valor): void
+    {
+        $userId = $this->requireAdmin();
+        $tag = $this->tagDeEntrada($valor);
+
+        if ($this->model()->desfijarTag($tag)) {
+            error_log("[admin] {$_SESSION['nickname']} (#{$userId}) quitó el tag fijado #{$tag}");
+            TiempoReal::avisar();
+        }
+
+        $this->jsonResponse(200, ['tag' => $tag, 'fijado' => false]);
     }
 
     public function show(int $id): void

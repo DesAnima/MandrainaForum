@@ -18,6 +18,12 @@ class Publicacion
     // Tope de publicaciones por página en el listado (paginación por cursor).
     public const LIMITE_MAX = 100;
 
+    // Tags generales: cuántos se muestran en la barra, cuántos devuelve "ver
+    // todos" como máximo y cuántos puede fijar el administrador.
+    public const LIMITE_TAGS_GENERALES = 15;
+    public const LIMITE_TAGS_TODOS = 500;
+    public const MAX_FIJADOS = 10;
+
     // Clave en Redis que recuerda que los índices ya se verificaron, así no
     // se repite el CREATE INDEX IF NOT EXISTS en cada request.
     private const CLAVE_INDICES = 'db:indices:v1';
@@ -73,6 +79,13 @@ class Publicacion
                 publicacion_id INTEGER NOT NULL REFERENCES publicaciones(id) ON DELETE CASCADE,
                 tag TEXT NOT NULL,
                 PRIMARY KEY (publicacion_id, tag)
+            )
+        ");
+        // Tags que el administrador dejó fijados arriba en "Tags generales".
+        $this->pdo->exec("
+            CREATE TABLE IF NOT EXISTS tags_fijados (
+                tag TEXT PRIMARY KEY,
+                fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
             )
         ");
         $this->asegurarIndices();
@@ -148,18 +161,77 @@ class Publicacion
     }
 
     /**
-     * Tags generales: los más usados por todos los usuarios, con el total de
-     * publicaciones de cada uno. Los más usados primero.
+     * Tags generales: primero los que fijó el administrador (en el orden en que
+     * los fijó, aunque ya no tengan publicaciones) y después los más usados por
+     * todos. Devuelve como máximo $limite y el total de tags que existen, para
+     * saber si hay más que mostrar ("ver todos los tags").
+     *
+     * @return array{tags: array<int, array{tag:string,total:int,fijado:bool}>, total_tags: int}
      */
-    public function tagsPopulares(int $limite = 15): array
+    public function tagsGenerales(int $limite = self::LIMITE_TAGS_GENERALES): array
     {
-        $limite = max(1, min(50, $limite));
-        $sql = "SELECT tag, COUNT(*)::int AS total
-                FROM publicacion_tags
-                GROUP BY tag
-                ORDER BY total DESC, tag ASC
+        $limite = max(1, min(self::LIMITE_TAGS_TODOS, $limite));
+        $sql = "WITH conteo AS (
+                    SELECT tag, COUNT(*)::int AS total
+                    FROM publicacion_tags
+                    GROUP BY tag
+                )
+                SELECT COALESCE(c.tag, f.tag) AS tag,
+                       COALESCE(c.total, 0) AS total,
+                       (f.tag IS NOT NULL) AS fijado,
+                       COUNT(*) OVER ()::int AS total_tags
+                FROM conteo c
+                FULL OUTER JOIN tags_fijados f ON f.tag = c.tag
+                ORDER BY (f.tag IS NOT NULL) DESC,
+                         f.fecha_creacion ASC,
+                         COALESCE(c.total, 0) DESC,
+                         COALESCE(c.tag, f.tag) ASC
                 LIMIT {$limite}";
-        return $this->pdo->query($sql)->fetchAll();
+
+        $filas = $this->pdo->query($sql)->fetchAll();
+
+        return [
+            'tags' => array_map(fn($f) => [
+                'tag' => (string) $f['tag'],
+                'total' => (int) $f['total'],
+                'fijado' => (bool) $f['fijado'],
+            ], $filas),
+            'total_tags' => $filas ? (int) $filas[0]['total_tags'] : 0,
+        ];
+    }
+
+    /** ¿Hay al menos una publicación con este tag? */
+    public function existeTag(string $tag): bool
+    {
+        $stmt = $this->pdo->prepare("SELECT 1 FROM publicacion_tags WHERE tag = :tag LIMIT 1");
+        $stmt->execute([':tag' => $tag]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function estaFijado(string $tag): bool
+    {
+        $stmt = $this->pdo->prepare("SELECT 1 FROM tags_fijados WHERE tag = :tag");
+        $stmt->execute([':tag' => $tag]);
+        return (bool) $stmt->fetchColumn();
+    }
+
+    public function cantidadFijados(): int
+    {
+        return (int) $this->pdo->query("SELECT COUNT(*) FROM tags_fijados")->fetchColumn();
+    }
+
+    public function fijarTag(string $tag): void
+    {
+        $stmt = $this->pdo->prepare("INSERT INTO tags_fijados (tag) VALUES (:tag) ON CONFLICT DO NOTHING");
+        $stmt->execute([':tag' => $tag]);
+    }
+
+    /** Devuelve false si el tag no estaba fijado. */
+    public function desfijarTag(string $tag): bool
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM tags_fijados WHERE tag = :tag");
+        $stmt->execute([':tag' => $tag]);
+        return $stmt->rowCount() > 0;
     }
 
     /**
