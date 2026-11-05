@@ -5,10 +5,13 @@
 // Valor opaco que cambia cada vez que se modifica el contenido del foro. El
 // panel lo consulta cada pocos segundos y sólo recarga el feed cuando cambia
 // (ver includes/TiempoReal.php). Es una consulta barata: un GET a Redis.
+// También devuelve "activos": cuántos usuarios tienen el panel abierto ahora
+// (ver includes/Presencia.php).
 
 require_once __DIR__ . '/../../includes/session.php';
 mandraina_session_start();
 $autenticado = !empty($_SESSION['user_id']);
+$userId = (int) ($_SESSION['user_id'] ?? 0);
 // Se llama cada pocos segundos por pestaña: se suelta la sesión enseguida.
 session_write_close();
 
@@ -56,4 +59,8 @@ if ($version === null) {
     $version = 'db-' . md5(implode('|', $fila));
 }
 
-echo json_encode(['version' => $version]);
+// Mandrainos activos: este mismo sondeo sirve de "latido" del usuario.
+require_once __DIR__ . '/../../includes/Presencia.php';
+$activos = Presencia::registrar($userId);
+
+echo json_encode(['version' => $version, 'activos' => $activos]);

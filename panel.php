@@ -15,6 +15,10 @@ require_once __DIR__ . '/includes/Admin.php';
     <header class="panel-header">
         <h1>Mandraina Forum</h1>
         <div class="panel-header-user">
+            <div class="activos-box" id="activos-box" role="status" aria-live="polite" title="Usuarios con el panel abierto en este momento">
+                <span class="activos-label"><span class="activos-punto" aria-hidden="true"></span>Mandrainos activos</span>
+                <strong class="activos-num" id="activos-num">–</strong>
+            </div>
             <img class="avatar" src="avatar.php?id=<?= (int) $_SESSION['user_id'] ?>" alt="Tu avatar" />
             <span>Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong><?php if (Admin::esAdmin()): ?> <span class="badge-admin">ADMIN</span><?php endif; ?></span>
             <a href="perfil.php" class="btn btn-register btn-small">Mi perfil</a>
@@ -58,7 +62,7 @@ require_once __DIR__ . '/includes/Admin.php';
     </main>
     </div>
 
-    <button type="button" id="btn-subir" class="btn-subir" aria-label="Volver arriba" title="Volver arriba" hidden>↑</button>
+    <button type="button" id="btn-subir" class="btn-subir" aria-label="Volver arriba" title="Volver arriba" aria-hidden="true" tabindex="-1"><span class="btn-subir-flecha" aria-hidden="true">↑</span></button>
 
     <script>
         const API_URL = 'api/v1/publicaciones';
@@ -833,6 +837,17 @@ require_once __DIR__ . '/includes/Admin.php';
         let versionRT = null;
         let consultando = false;
 
+        // "Mandrainos activos": llega junto con cada sondeo de novedades.
+        const activosNum = document.getElementById('activos-num');
+        function actualizarActivos(n) {
+            if (!Number.isInteger(n)) return; // sin dato: se deja el último valor
+            if (activosNum.textContent === String(n)) return;
+            activosNum.textContent = String(n);
+            activosNum.classList.remove('activos-cambio');
+            void activosNum.offsetWidth; // reinicia la animación
+            activosNum.classList.add('activos-cambio');
+        }
+
         async function leerVersion() {
             const res = await fetch(NOVEDADES_URL, { cache: 'no-store' });
             if (res.status === 401) {
@@ -841,6 +856,7 @@ require_once __DIR__ . '/includes/Admin.php';
             }
             if (!res.ok) return null;
             const data = await res.json();
+            actualizarActivos(data.activos);
             return typeof data.version === 'string' ? data.version : null;
         }
 
@@ -866,16 +882,59 @@ require_once __DIR__ . '/includes/Admin.php';
 
         renderTagsBar();
 
-        // ---- Botón "volver arriba": aparece al bajar y lleva al tope ----
+        // ---- Botón "volver arriba": aparece al bajar y te lleva al tope con animación ----
+        // El desplazamiento se anima por JavaScript (con aceleración y frenado
+        // suaves) para que se vea igual en todos los navegadores, aunque el
+        // sistema tenga desactivado el desplazamiento suave.
         const btnSubir = document.getElementById('btn-subir');
         const UMBRAL_SUBIR = 400; // px de scroll a partir de los cuales aparece
+        let subiendo = false;
+        let cancelarSubida = null;
+
         function actualizarBtnSubir() {
-            btnSubir.hidden = window.scrollY < UMBRAL_SUBIR;
+            const visible = window.scrollY >= UMBRAL_SUBIR;
+            btnSubir.classList.toggle('visible', visible);
+            btnSubir.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            btnSubir.tabIndex = visible ? 0 : -1;
         }
+
+        function subirAlTope() {
+            if (subiendo) return;
+            const inicio = window.scrollY;
+            if (inicio <= 0) return;
+
+            subiendo = true;
+            btnSubir.classList.add('subiendo');
+
+            // Más distancia, más tiempo (entre 0,6 y 1,2 s).
+            const duracion = Math.min(1200, Math.max(600, inicio * 0.3));
+            const t0 = performance.now();
+            let cancelado = false;
+            let frame = 0;
+
+            const terminar = () => {
+                cancelAnimationFrame(frame);
+                ['wheel', 'touchstart', 'keydown'].forEach((ev) => window.removeEventListener(ev, cancelarSubida));
+                cancelarSubida = null;
+                subiendo = false;
+                btnSubir.classList.remove('subiendo');
+            };
+            // Si la persona mueve la página mientras sube, se corta para no pelear con ella.
+            cancelarSubida = () => { cancelado = true; terminar(); };
+            ['wheel', 'touchstart', 'keydown'].forEach((ev) => window.addEventListener(ev, cancelarSubida, { passive: true }));
+
+            const paso = (ahora) => {
+                if (cancelado) return;
+                const t = Math.min(1, (ahora - t0) / duracion);
+                const suave = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; // easeInOutCubic
+                window.scrollTo({ top: Math.round(inicio * (1 - suave)), behavior: 'instant' });
+                if (t < 1) frame = requestAnimationFrame(paso); else terminar();
+            };
+            frame = requestAnimationFrame(paso);
+        }
+
         window.addEventListener('scroll', actualizarBtnSubir, { passive: true });
-        btnSubir.addEventListener('click', () => {
-            window.scrollTo({ top: 0, behavior: sinMovimiento() ? 'auto' : 'smooth' });
-        });
+        btnSubir.addEventListener('click', subirAlTope);
         actualizarBtnSubir();
 
         // La versión se lee ANTES (en paralelo) de cargar el feed: si algo cambia

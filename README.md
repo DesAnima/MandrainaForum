@@ -67,6 +67,17 @@ El cuadro de contenido acepta Enter para bajar de renglón y las publicaciones
 (`includes/Texto.php`) conserva los saltos de línea, con un máximo de una
 línea en blanco seguida entre párrafos; el título es siempre de una línea.
 
+## Mandrainos activos
+
+El cuadro de arriba a la derecha muestra cuántos usuarios tienen el panel
+abierto y visible. No hay un sondeo extra: cada consulta de
+`GET /api/v1/novedades.php` (cada ~3 s por pestaña visible) funciona como
+"latido" y la respuesta trae `activos`. Se cuenta como activo a quien dio señal
+en los últimos 20 s (`Presencia::VENTANA`); varias pestañas del mismo usuario
+cuentan una vez y al cerrar sesión se sale del conteo enseguida. Con Redis es
+un conjunto ordenado (`presencia`); sin Redis usa la tabla `presencia` de
+PostgreSQL (`includes/Presencia.php`).
+
 ## Registro anónimo por QR
 
 No hay formulario de contraseña en el registro: el usuario solo elige un
