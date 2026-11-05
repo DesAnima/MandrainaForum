@@ -73,6 +73,7 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
     $tipo = (string) ($evento['evento'] ?? '');
     $id = (int) ($evento['publicacion_id'] ?? 0);
     $umbral = FiltroContenido::UMBRAL_ELIMINACION;
+    $huboBorrados = false;
 
     if (in_array($tipo, ['publicacion.creada', 'publicacion.editada'], true) && $id > 0) {
         $publicacion = $modelo->getById($id);
@@ -82,6 +83,7 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
 
         if ($insultos >= $umbral) {
             $modelo->delete($id);
+            $huboBorrados = true;
             registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_insultos ({$insultos})");
             logw("Moderación: publicación #{$id} ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
         } elseif ($insultos > 0) {
@@ -98,6 +100,7 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
         // El registro queda asociado a la publicación a la que se respondió.
         if ($insultos >= $umbral) {
             $respuestas->delete($rid);
+            $huboBorrados = true;
             registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_insultos ({$insultos})");
             logw("Moderación: respuesta #{$rid} (publicación #{$id}) ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
         } elseif ($insultos > 0) {
@@ -107,6 +110,13 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
     }
 
     Feed::precalentar($modelo);
+
+    // El worker borró contenido por moderación: avisa a los paneles abiertos
+    // (después de recalentar la caché, así encuentran el feed ya actualizado).
+    if ($huboBorrados) {
+        TiempoReal::avisar();
+    }
+
     logw("Procesado {$tipo} #{$id}; caché del feed recalentada.");
 }
 

@@ -61,6 +61,8 @@ require_once __DIR__ . '/includes/auth_check.php';
         const API_URL = 'api/v1/publicaciones';
         const RESPUESTAS_URL = 'api/v1/respuestas.php';
         const TAGS_URL = 'api/v1/tags.php';
+        const NOVEDADES_URL = 'api/v1/novedades.php';
+        const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
 
         const feedEl = document.getElementById('feed');
@@ -81,6 +83,7 @@ require_once __DIR__ . '/includes/auth_check.php';
         const feedFilterTag = document.getElementById('feed-filter-tag');
 
         let tagActivo = null;
+        let seqTags = 0;
         let misTags = [];
 
         function renderTagsBar() {
@@ -102,9 +105,12 @@ require_once __DIR__ . '/includes/auth_check.php';
 
         async function cargarMisTags() {
             try {
-                const res = await fetch(TAGS_URL);
+                const miSeq = ++seqTags;
+                const res = await fetch(TAGS_URL, { cache: 'no-store' });
                 if (!res.ok) return;
-                misTags = await res.json();
+                const data = await res.json();
+                if (miSeq !== seqTags) return; // llegó otra respuesta más nueva
+                misTags = data;
                 renderTagsBar();
             } catch (err) {
                 console.error('Error al cargar los tags:', err);
@@ -116,6 +122,7 @@ require_once __DIR__ . '/includes/auth_check.php';
             feedFilter.hidden = tagActivo === null;
             feedFilterTag.textContent = tagActivo === null ? '' : `#${tagActivo}`;
             renderTagsBar();
+            primeraCarga = true; // las tarjetas del nuevo filtro no son "novedades"
             cargarPublicaciones();
         }
 
@@ -144,29 +151,161 @@ require_once __DIR__ . '/includes/auth_check.php';
                 .replace(/'/g, '&#39;');
         }
 
-        async function cargarPublicaciones() {
-            feedStatus.textContent = 'Cargando publicaciones...';
+        // ---- Feed: se actualiza tarjeta por tarjeta, nunca se vuelve a dibujar todo ----
+        // Así una actualización en vivo no te borra la respuesta que estás
+        // escribiendo, no cierra los hilos abiertos ni vuelve a ocultar el
+        // contenido sensible que ya revelaste.
+
+        const firmasPosts = new Map(); // id -> "firma" de lo último que se dibujó
+        let primeraCarga = true;       // la primera carga no resalta tarjetas como nuevas
+        let seqFeed = 0;
+
+        function mostrarEstado(texto) {
+            feedEl.innerHTML = `<p id="feed-status">${escapeHtml(texto)}</p>`;
+        }
+
+        function hayTarjetas() {
+            return feedEl.querySelector('.post-card') !== null;
+        }
+
+        function firmaPost(p) {
+            return JSON.stringify([
+                p.nickname, p.titulo, p.contenido, p.tags || [],
+                p.contenido_sensible === true, Number(p.total_respuestas) || 0,
+                p.fecha_actualizacion,
+            ]);
+        }
+
+        function htmlADom(html) {
+            const t = document.createElement('template');
+            t.innerHTML = html.trim();
+            return t.content.firstElementChild;
+        }
+
+        // Guarda lo que el usuario "tiene a medias" en una tarjeta...
+        function capturarEstado(card) {
+            const input = card.querySelector('.reply-input');
+            const botonRevelar = card.querySelector('.reveal-btn');
+            return {
+                abierto: !card.querySelector('.replies').hidden,
+                listaHtml: card.querySelector('.replies-list').innerHTML,
+                borrador: input ? input.value : '',
+                enfocado: !!input && document.activeElement === input,
+                selIni: input ? input.selectionStart : 0,
+                selFin: input ? input.selectionEnd : 0,
+                cuerpoRevelado: !!botonRevelar && !card.querySelector('.post-body').hidden,
+            };
+        }
+
+        // ...y se lo devuelve a la tarjeta nueva (ya insertada en el documento).
+        function restaurarEstado(card, e) {
+            if (e.cuerpoRevelado) {
+                const cuerpo = card.querySelector('.post-body');
+                const boton = card.querySelector('.reveal-btn');
+                if (cuerpo && boton) {
+                    cuerpo.hidden = false;
+                    boton.textContent = 'Ocultar contenido';
+                }
+            }
+
+            if (e.abierto) {
+                card.querySelector('.replies').hidden = false;
+                card.querySelector('.replies-list').innerHTML = e.listaHtml; // sin parpadeo
+                cargarRespuestas(card, { silencioso: true });                // y se refresca
+            }
+
+            const input = card.querySelector('.reply-input');
+            if (input && e.borrador) {
+                input.value = e.borrador;
+                card.querySelector('.reply-count').textContent = `${input.value.length} / ${input.maxLength}`;
+                if (e.enfocado) {
+                    input.focus();
+                    input.setSelectionRange(e.selIni, e.selFin);
+                }
+            }
+        }
+
+        function reconciliarFeed(data) {
+            // Fuera cualquier mensaje de estado ("Cargando...", "Todavía no hay...").
+            feedEl.querySelectorAll(':scope > :not(.post-card)').forEach((n) => n.remove());
+
+            const actuales = new Map(
+                [...feedEl.querySelectorAll(':scope > .post-card')].map((c) => [c.dataset.id, c])
+            );
+
+            // Publicaciones que ya no están (borradas por su autora/autor o por moderación).
+            const vigentes = new Set(data.map((p) => String(p.id)));
+            actuales.forEach((card, id) => {
+                if (!vigentes.has(id)) {
+                    card.remove();
+                    firmasPosts.delete(id);
+                }
+            });
+
+            let cursor = feedEl.firstElementChild;
+            for (const post of data) {
+                const id = String(post.id);
+                const firma = firmaPost(post);
+                let card = actuales.get(id);
+                let estado = null;
+
+                if (!card) {
+                    card = htmlADom(renderPost(post));
+                    if (!primeraCarga) card.classList.add('post-nuevo');
+                } else if (firmasPosts.get(id) !== firma) {
+                    // Cambió (editada, nuevas respuestas, etc.): se rehace esa tarjeta.
+                    estado = capturarEstado(card);
+                    const nueva = htmlADom(renderPost(post));
+                    if (cursor === card) cursor = card.nextElementSibling;
+                    card.remove();
+                    card = nueva;
+                }
+                firmasPosts.set(id, firma);
+
+                if (card === cursor) {
+                    cursor = cursor.nextElementSibling; // ya está en su lugar
+                } else {
+                    feedEl.insertBefore(card, cursor); // nueva, reemplazada o fuera de orden
+                }
+
+                if (estado) restaurarEstado(card, estado);
+            }
+
+            primeraCarga = false;
+        }
+
+        // silencioso = actualización en segundo plano: sin "Cargando..." y sin
+        // mostrar errores (si falla, se reintenta en el próximo ciclo).
+        async function cargarPublicaciones({ silencioso = false } = {}) {
+            const miSeq = ++seqFeed;
+            if (!silencioso && !hayTarjetas()) mostrarEstado('Cargando publicaciones...');
+
             try {
                 const url = tagActivo === null ? API_URL : `${API_URL}?tag=${encodeURIComponent(tagActivo)}`;
-                const res = await fetch(url);
+                const res = await fetch(url, { cache: 'no-store' });
                 const data = await res.json();
 
+                if (miSeq !== seqFeed) return; // llegó otra respuesta más nueva
+
                 if (!res.ok) {
-                    feedStatus.textContent = data.error || 'No se pudieron cargar las publicaciones.';
+                    if (!silencioso && !hayTarjetas()) {
+                        mostrarEstado(data.error || 'No se pudieron cargar las publicaciones.');
+                    }
                     return;
                 }
 
                 if (data.length === 0) {
-                    feedEl.innerHTML = tagActivo === null
-                        ? '<p id="feed-status">Todavía no hay publicaciones. ¡Sé el primero!</p>'
-                        : '<p id="feed-status">Todavía no hay publicaciones con ese tag.</p>';
+                    firmasPosts.clear();
+                    mostrarEstado(tagActivo === null
+                        ? 'Todavía no hay publicaciones. ¡Sé el primero!'
+                        : 'Todavía no hay publicaciones con ese tag.');
                     return;
                 }
 
-                feedEl.innerHTML = data.map(renderPost).join('');
+                reconciliarFeed(data);
             } catch (err) {
                 console.error('Error al cargar publicaciones:', err);
-                feedStatus.textContent = 'Error de red al cargar publicaciones.';
+                if (!silencioso && !hayTarjetas()) mostrarEstado('Error de red al cargar publicaciones.');
             }
         }
 
@@ -246,26 +385,43 @@ require_once __DIR__ . '/includes/auth_check.php';
             `;
         }
 
-        async function cargarRespuestas(card) {
+        async function cargarRespuestas(card, { silencioso = false } = {}) {
             const lista = card.querySelector('.replies-list');
-            lista.textContent = 'Cargando respuestas...';
+            if (!silencioso) lista.textContent = 'Cargando respuestas...';
 
             try {
-                const res = await fetch(`${RESPUESTAS_URL}?publicacion_id=${card.dataset.id}`);
+                const res = await fetch(`${RESPUESTAS_URL}?publicacion_id=${card.dataset.id}`, { cache: 'no-store' });
                 const data = await res.json();
 
                 if (!res.ok) {
-                    lista.textContent = data.error || 'No se pudieron cargar las respuestas.';
+                    if (!silencioso) lista.textContent = data.error || 'No se pudieron cargar las respuestas.';
                     return;
                 }
+                if (!card.isConnected) return; // la tarjeta se quitó mientras tanto
+
+                // Respuestas con lenguaje sensible que el usuario ya había revelado.
+                const reveladas = [...lista.querySelectorAll('.reply')]
+                    .filter((r) => r.querySelector('.reveal-reply-btn') && !r.querySelector('.reply-body').hidden)
+                    .map((r) => r.dataset.id);
 
                 lista.innerHTML = data.length
                     ? data.map(renderRespuesta).join('')
                     : '<p class="replies-empty">Todavía no hay respuestas.</p>';
+
+                reveladas.forEach((id) => {
+                    const r = lista.querySelector(`.reply[data-id="${id}"]`);
+                    const cuerpo = r && r.querySelector('.reply-body');
+                    const boton = r && r.querySelector('.reveal-reply-btn');
+                    if (cuerpo && boton) {
+                        cuerpo.hidden = false;
+                        boton.textContent = 'Ocultar contenido';
+                    }
+                });
+
                 card.querySelector('.replies-toggle').textContent = `💬 Respuestas (${data.length})`;
             } catch (err) {
                 console.error('Error al cargar respuestas:', err);
-                lista.textContent = 'Error de red al cargar las respuestas.';
+                if (!silencioso) lista.textContent = 'Error de red al cargar las respuestas.';
             }
         }
 
@@ -445,9 +601,57 @@ require_once __DIR__ . '/includes/auth_check.php';
             }
         });
 
+        // ---- Tiempo real ----
+        // Cada POLL_MS se pregunta por la "versión" del contenido (una
+        // consulta mínima a Redis). Solo si cambió se vuelve a pedir el feed y
+        // los tags. Con la pestaña en segundo plano no se consulta, y al
+        // volver se consulta enseguida.
+        let versionRT = null;
+        let consultando = false;
+
+        async function leerVersion() {
+            const res = await fetch(NOVEDADES_URL, { cache: 'no-store' });
+            if (res.status === 401) {
+                window.location.href = 'index.html'; // la sesión venció
+                return null;
+            }
+            if (!res.ok) return null;
+            const data = await res.json();
+            return typeof data.version === 'string' ? data.version : null;
+        }
+
+        async function buscarNovedades() {
+            if (document.hidden || consultando) return;
+            consultando = true;
+            try {
+                const version = await leerVersion();
+                if (version === null) return;
+
+                if (versionRT === null) {
+                    versionRT = version; // primera lectura: punto de partida
+                } else if (version !== versionRT) {
+                    versionRT = version;
+                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags()]);
+                }
+            } catch (err) {
+                // Sin red o servidor caído: se reintenta en el próximo ciclo.
+            } finally {
+                consultando = false;
+            }
+        }
+
         renderTagsBar();
+
+        // La versión se lee ANTES (en paralelo) de cargar el feed: si algo cambia
+        // mientras carga, el primer sondeo lo detecta.
+        leerVersion().then((v) => { if (versionRT === null) versionRT = v; }).catch(() => {});
         cargarPublicaciones();
         cargarMisTags();
+
+        setInterval(buscarNovedades, POLL_MS);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) buscarNovedades();
+        });
     </script>
 </body>
 </html>

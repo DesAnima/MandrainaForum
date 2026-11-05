@@ -1,6 +1,13 @@
+/* Fondo negro sólido. Antes era un degradado amarillo -> negro que terminaba
+   al 40 % de la ALTURA de la página: cuantas más publicaciones había, más alta
+   era la página y más grande la zona amarilla. */
+html {
+    background: #000;
+}
+
 .panel-body {
     display: block;
-    background: linear-gradient(180deg, #ffd900, #000000 40%);
+    background: #000;
     min-height: 100vh;
 }
 
@@ -79,8 +86,8 @@
 }
 
 .post-card {
-    background: rgba(0, 0, 0, 0.85);
-    border: 1px solid #ffd900;
+    background: #0a0a0a;
+    border: 2px solid #ffd900;
     border-radius: 10px;
     padding: 1.2rem;
     color: #fff;
@@ -485,5 +492,29 @@
     .avatar-preview {
         width: 80px;
         height: 80px;
+    }
+}
+
+/* -------------------
+   TIEMPO REAL
+------------------- */
+
+/* Una publicación que llega en vivo brilla un momento. */
+@keyframes post-nuevo-brillo {
+    from {
+        box-shadow: 0 0 0 3px rgba(255, 217, 0, 0.85), 0 0 22px rgba(255, 217, 0, 0.55);
+    }
+    to {
+        box-shadow: 0 0 0 0 rgba(255, 217, 0, 0), 0 0 0 rgba(255, 217, 0, 0);
+    }
+}
+
+.post-nuevo {
+    animation: post-nuevo-brillo 2.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .post-nuevo {
+        animation: none;
     }
 }

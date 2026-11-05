@@ -102,7 +102,7 @@ sirviendo múltiples requests en paralelo, no dentro de un mismo request.
 ├── models/         # Acceso a datos (models/Publicacion.php, models/Usuario.php)
 ├── controllers/     # Lógica HTTP y validaciones (controllers/PublicacionController.php)
 ├── api/v1/          # Rutas de la API REST (api/v1/publicaciones.php + .htaccess)
-├── includes/        # Helpers: auth_check, session (sesión en Redis), Cache, Feed,
+├── includes/        # Helpers: auth_check, session (sesión en Redis), Cache, Feed, TiempoReal,
 │                    #   RateLimiter, Cola (productor RabbitMQ), FiltroContenido
 ├── worker/          # consumer.php: consumidor de RabbitMQ (proceso aparte de Apache)
 ├── migrations/      # SQL de migración (001, 002, 003)
@@ -126,7 +126,7 @@ Base: `/api/v1/publicaciones`
 | PUT    | `/api/v1/publicaciones/{id}`  | Editar una publicación propia         | 200 / 400 / 401 / 403 / 404     |
 | DELETE | `/api/v1/publicaciones/{id}`  | Eliminar una publicación propia       | 204 / 401 / 403 / 404           |
 
-Además: `GET /api/v1/health` informa el estado de PostgreSQL, Redis y
+`GET /api/v1/novedades.php` devuelve la "versión" del contenido (ver *Actualización en vivo*). Además: `GET /api/v1/health` informa el estado de PostgreSQL, Redis y
 RabbitMQ (200 si PostgreSQL responde, 503 si no). `POST /api/v1/publicaciones`
 también puede responder `429` si el usuario publica más de 10 veces por minuto.
 `GET /api/v1/publicaciones` agrega el header `X-Cache: HIT|MISS`.
@@ -203,6 +203,31 @@ Si un mensaje falla se reintenta una vez; después va a la cola
 `mandraina.publicaciones.dlq` (se puede inspeccionar en el panel de RabbitMQ).
 Publicar es "best effort": si RabbitMQ está caído se escribe en el log y la
 API responde igual, porque los eventos solo disparan tareas secundarias.
+
+## Actualización en vivo
+
+El panel se actualiza solo cuando alguien publica, edita, borra o responde (y
+cuando el worker elimina contenido por moderación), sin recargar la página.
+
+**Cómo funciona.** Cada cambio guarda en Redis un valor nuevo
+(`includes/TiempoReal.php`, llamado desde `Feed::invalidar()` y desde el
+worker). El panel pregunta cada 3 segundos por ese valor a
+`/api/v1/novedades.php` (un solo `GET` a Redis, sin tocar PostgreSQL) y recién
+cuando cambió vuelve a pedir el feed y los tags. Con la pestaña en segundo
+plano no consulta, y al volver lo hace al instante. Si Redis no está
+configurado, `novedades.php` calcula una huella desde PostgreSQL y todo sigue
+funcionando.
+
+**No molesta mientras usás la página.** El feed se actualiza tarjeta por
+tarjeta: solo se rehacen las que cambiaron. Se conserva la respuesta que estás
+escribiendo (con el foco), los hilos abiertos y el contenido sensible que ya
+revelaste. Las publicaciones que llegan en vivo brillan un instante.
+
+**Por qué sondeo y no SSE/WebSockets.** Con Apache + PHP cada conexión abierta
+ocuparía un proceso mientras dure, y los proxies (Render incluido) suelen
+cortarlas o bufferizarlas. El sondeo es una petición mínima, no retiene
+procesos y funciona igual en cualquier hosting. La demora máxima es
+`POLL_MS` (3 s, en `panel.php`).
 
 ## Variables de entorno
 
@@ -282,6 +307,8 @@ al enfocar, `100dvh` para la barra del navegador móvil, zonas de toque más
 grandes en pantallas táctiles y respeto por `prefers-reduced-motion`.
 
 ## Roadmap (AE2 / TIFAS)
+
+- Notificaciones en vivo por usuario (por ejemplo, "respondieron tu publicación").
 
 - Despliegue completo sin Docker (web + worker + Redis + RabbitMQ gestionados).
 - Panel simple para revisar `moderacion_log`.

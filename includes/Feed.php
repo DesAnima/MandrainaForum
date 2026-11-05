@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/Cache.php';
 require_once __DIR__ . '/FiltroContenido.php';
+require_once __DIR__ . '/TiempoReal.php';
 
 class Feed
 {
@@ -45,9 +46,12 @@ class Feed
         return $feed;
     }
 
+    // Se llama después de cada escritura (ya confirmada en la base): descarta
+    // la caché y avisa a los paneles abiertos de que hay novedades.
     public static function invalidar(): void
     {
         Cache::borrar(self::CLAVE);
+        TiempoReal::avisar();
     }
 
     public static function precalentar(Publicacion $model): void
