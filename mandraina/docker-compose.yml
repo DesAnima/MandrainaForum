@@ -1,0 +1,91 @@
+# docker-compose.yml
+# Levanta todo el stack local: web (Apache+PHP), worker (consumidor de
+# RabbitMQ), Redis, RabbitMQ y un PostgreSQL local opcional.
+#
+#   docker compose up --build
+#
+# Web:                http://localhost:8080
+# Panel de RabbitMQ:  http://localhost:15672  (usuario/clave: mandraina / mandraina)
+#
+# Las variables se leen de un archivo .env junto a este archivo (ver
+# .env.example). Si no existe, se usan los valores por defecto de abajo.
+
+x-app-env: &app-env
+  DATABASE_URL: ${DATABASE_URL:-postgresql://mandraina:mandraina@db:5432/mandraina?sslmode=disable}
+  REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+  AMQP_URL: ${AMQP_URL:-amqp://mandraina:mandraina@rabbitmq:5672/}
+  TRUST_PROXY: ${TRUST_PROXY:-0}
+  APP_ENV: ${APP_ENV:-local}
+  ADMIN_NICKNAME: ${ADMIN_NICKNAME:-}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      <<: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    # Para editar código en vivo sin reconstruir, descomentá. OJO: esto pisa
+    # el vendor/ de la imagen; corré antes `composer install` en tu carpeta.
+    # volumes:
+    #   - ./:/var/www/html
+
+  worker:
+    build: .
+    command: ["php", "worker/consumer.php"]
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+    depends_on:
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: mandraina
+      RABBITMQ_DEFAULT_PASS: mandraina
+    ports:
+      - "15672:15672"   # panel de administración
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # PostgreSQL local. Si preferís seguir usando Neon, poné tu DATABASE_URL
+  # en el .env y este servicio simplemente queda sin usarse.
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mandraina
+      POSTGRES_PASSWORD: mandraina
+      POSTGRES_DB: mandraina
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
+volumes:
+  redis_data:
+  rabbitmq_data:
+  pg_data:

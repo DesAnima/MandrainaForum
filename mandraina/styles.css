@@ -1,0 +1,243 @@
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+img {
+    max-width: 100%;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(90deg, #ffd900, #000000, black);
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    position: relative;
+    padding: 1rem;
+    /* La animación de entrada arranca fuera de pantalla: sin esto el celular
+       muestra scroll horizontal durante un segundo. */
+    overflow-x: hidden;
+    overflow-x: clip;
+}
+
+/* Imagen del login */
+.login-image {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 2rem;
+    z-index: 1;
+}
+
+/* Animación */
+@keyframes slideIn {
+    0% {
+        transform: translateY(-50%) translateX(1000px);
+        opacity: 0;
+    }
+    100% {
+        transform: translateY(0) translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Contenedor del formulario */
+.login-container {
+    background: #000000;
+    padding: 2rem;
+    border-radius: 10px;
+    width: 350px;
+    max-width: 100%;
+    text-align: center;
+    border: 3px solid #ffd900;
+    box-shadow: 0 0 15px rgba(225, 250, 2, 0.5);
+    transition: transform 0.3s, box-shadow 0.3s;
+    animation: slideIn 1s ease-out forwards;
+}
+
+.login-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(225, 250, 2, 0.5);
+}
+
+.login-container h2 {
+    margin-bottom: 1.2rem;
+    color: #ffd900;
+}
+
+/* Input y botones */
+.password-container {
+    position: relative;
+    width: 100%;
+}
+
+.password-container .input-box {
+    width: 100%;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.input-box {
+    width: 80%;
+    font-family: inherit;
+    font-size: 1rem; /* 16px: evita el zoom automático de iOS al enfocar */
+    padding: 0.8rem;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    border: 1px solid #ffd900;
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    outline: none;
+    transition: all 0.3s;
+}
+
+.input-box:focus {
+    border-color: #ffd900;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.btn {
+    width: 80%;
+    padding: 0.9rem;
+    border: none;
+    border-radius: 6px;
+    margin-top: 0.8rem;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.btn-login {
+    background: linear-gradient(90deg, #ffd900, #FFC107);
+    color: #000000;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-login:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(225, 250, 2, 0.4);
+}
+
+.btn-register {
+    background: transparent;
+    color: #ffd900;
+    border: 2px solid #ffd900;
+    font-weight: 600;
+}
+
+.btn-register:hover {
+    background: #ffd900;
+    color: #000;
+}
+
+/* -------------------
+   RESPONSIVE DESIGN
+------------------- */
+
+/* Tablets y pantallas medianas */
+@media (max-width: 1024px) {
+    .login-wrapper {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .login-image {
+        width: 200px;
+        height: 200px;
+        margin: 0 0 1rem 0;
+    }
+
+    .login-container {
+        width: 80%;
+        max-width: 400px;
+    }
+}
+
+/* Móviles (pantallas pequeñas) */
+@media (max-width: 600px) {
+    body {
+        background: linear-gradient(180deg, #ffd900, #000);
+    }
+
+    .login-wrapper {
+        padding: 1rem;
+    }
+
+    .login-image {
+        width: 150px;
+        height: 150px;
+        margin-bottom: 1rem;
+    }
+
+    .login-container {
+        width: 100%;
+        max-width: 420px;
+        padding: 1.5rem;
+    }
+
+    .input-box,
+    .btn {
+        width: 100%;
+    }
+
+    .btn-login, .btn-register {
+        font-size: 0.9rem;
+        padding: 0.8rem;
+    }
+}
+
+/* Celulares en horizontal: no hay alto para mostrar la imagen. */
+@media (max-height: 520px) and (orientation: landscape) {
+    .login-image {
+        display: none;
+    }
+
+    .login-wrapper {
+        padding: 0.5rem;
+    }
+}
+
+/* Pantallas táctiles: el "hover" queda pegado después de tocar. */
+@media (hover: none) {
+    .login-container:hover,
+    .btn-login:hover {
+        transform: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .login-container {
+        animation: none;
+    }
+}

@@ -1,0 +1,1317 @@
+/* Fondo negro sólido. Antes era un degradado amarillo -> negro que terminaba
+   al 40 % de la ALTURA de la página: cuantas más publicaciones había, más alta
+   era la página y más grande la zona amarilla. */
+html {
+    background: #000;
+    scroll-padding-top: 4rem; /* las anclas y scrollIntoView no quedan tapadas por la barra fija */
+}
+
+.panel-body {
+    display: block;
+    background: #000;
+    min-height: 100vh;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: #000;
+    border-bottom: 3px solid #ffd900;
+}
+
+.panel-header h1 {
+    color: #ffd900;
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.panel-header-user {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #fff;
+}
+
+.btn-small {
+    width: auto;
+    padding: 0.4rem 0.9rem;
+    margin-top: 0;
+    font-size: 0.85rem;
+}
+
+.panel-main {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.post-form-card {
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.post-form-card h2 {
+    color: #ffd900;
+    margin-top: 0;
+}
+
+.post-form-card textarea.input-box {
+    resize: vertical;
+    font-family: inherit;
+}
+
+.post-form-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.post-form-actions .btn {
+    width: auto;
+    padding: 0.7rem 1.5rem;
+}
+
+.feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#feed-status {
+    color: #fff;
+    text-align: center;
+}
+
+/* Pie del feed: "Cargando más..." / "No hay más publicaciones" y centinela del scroll infinito. */
+.feed-more {
+    min-height: 3rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.feed-more-text {
+    margin: 0;
+    padding: 0.6rem 0;
+    color: #fff;
+    opacity: 0.7;
+}
+
+.post-card {
+    background: #0a0a0a;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    padding: 1.2rem;
+    color: #fff;
+}
+
+.post-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ffd900;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.post-author {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid #ffd900;
+    flex-shrink: 0;
+}
+
+.avatar-sm {
+    width: 28px;
+    height: 28px;
+}
+
+.avatar-preview {
+    width: 100px;
+    height: 100px;
+    border-width: 2px;
+    margin: 0.75rem auto;
+}
+
+.sensible-box {
+    background: rgba(255, 217, 0, 0.08);
+    border: 1px dashed #ffd900;
+    border-radius: 8px;
+    padding: 0.9rem;
+    margin: 0.6rem 0;
+    text-align: center;
+}
+
+.sensible-box p {
+    margin: 0 0 0.5rem;
+    color: #ffd900;
+}
+
+.post-card h3 {
+    margin: 0.3rem 0;
+}
+
+.post-card-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.8rem;
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    color: #ffd900;
+    cursor: pointer;
+    font-weight: 600;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.btn-link:hover {
+    color: #fff;
+}
+
+.char-count {
+    display: block;
+    width: 80%;
+    text-align: right;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+}
+
+.post-body h3,
+.post-body p {
+    overflow-wrap: anywhere;
+}
+
+.post-replies-bar {
+    margin-top: 0.8rem;
+}
+
+.replies {
+    margin-top: 0.8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(255, 217, 0, 0.35);
+}
+
+.reply {
+    padding: 0.6rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.reply-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #ffd900;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+}
+
+.reply-body {
+    margin: 0.3rem 0;
+    overflow-wrap: anywhere;
+}
+
+.replies-empty {
+    color: #8a8a8a;
+    font-size: 0.85rem;
+}
+
+.reply-form {
+    margin-top: 0.8rem;
+}
+
+.reply-form .input-box {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0 0 0.3rem;
+}
+
+.reply-form .char-count {
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+.panel-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+.panel-layout .panel-main {
+    flex: 1;
+    min-width: 0;
+    max-width: 640px;
+    margin: 0;
+    padding: 0;
+}
+
+.tags-bar {
+    width: 220px;
+    flex-shrink: 0;
+    position: sticky;
+    top: 4.5rem; /* debajo de la barra superior compacta */
+    box-sizing: border-box;
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    padding: 1rem;
+    color: #fff;
+}
+
+/* Barra de tags generales: a la derecha del feed, mismo estilo que la otra. */
+.tags-bar-general {
+    order: 3;
+}
+
+.tags-bar h2 {
+    width: auto;
+    margin: 0 0 0.7rem;
+    padding: 0;
+    color: #ffd900;
+    font-size: 1rem;
+}
+
+.tags-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.tag-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.tag-item:hover {
+    border-color: #ffd900;
+}
+
+.tag-item.active {
+    background: rgba(255, 217, 0, 0.15);
+    border-color: #ffd900;
+    color: #ffd900;
+}
+
+.tag-total {
+    margin-left: 0.5rem;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+}
+
+.tags-empty {
+    margin: 0.7rem 0 0;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+}
+
+.feed-filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    color: #fff;
+}
+
+.feed-filter[hidden] {
+    display: none;
+}
+
+.post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+}
+
+.tag-chip {
+    background: rgba(255, 217, 0, 0.12);
+    border: 1px solid #ffd900;
+    border-radius: 999px;
+    color: #ffd900;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.6rem;
+}
+
+.tag-chip:hover {
+    background: #ffd900;
+    color: #000;
+}
+
+.form-hint {
+    display: block;
+    width: 80%;
+    margin-bottom: 0.8rem;
+    color: #8a8a8a;
+    font-size: 0.8rem;
+}
+
+/* -------------------
+   RESPONSIVE DESIGN
+------------------- */
+
+.panel-header {
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+}
+
+.panel-header-user {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.post-card-header,
+.reply-header,
+.feed-filter {
+    flex-wrap: wrap;
+    gap: 0.3rem 1rem;
+}
+
+.post-card-actions,
+.post-form-actions {
+    flex-wrap: wrap;
+}
+
+.tags-list li {
+    flex-shrink: 0;
+}
+
+/* Los campos del formulario ocupan todo el ancho de la tarjeta. */
+.post-form-card .input-box,
+.post-form-card .char-count,
+.post-form-card .form-hint {
+    width: 100%;
+}
+
+/* Pantallas táctiles: zonas de toque más grandes. */
+@media (pointer: coarse) {
+    .btn-link {
+        padding: 0.5rem 0.25rem;
+    }
+
+    .tag-chip {
+        padding: 0.3rem 0.8rem;
+    }
+
+    .tag-item {
+        padding: 0.6rem 0.7rem;
+    }
+}
+
+/* Tablets y celulares */
+@media (max-width: 760px) {
+    .panel-header {
+        padding: 0.8rem 1rem;
+    }
+
+    .panel-header h1 {
+        font-size: 1.2rem;
+    }
+
+    .panel-main {
+        padding: 1rem 0.75rem;
+    }
+
+    .panel-layout {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem 0.75rem;
+    }
+
+    .panel-layout .panel-main {
+        width: 100%;
+        max-width: none;
+    }
+
+    .post-form-card {
+        padding: 1rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .post-card {
+        padding: 1rem;
+    }
+
+    /* La barra de tags pasa a ser una fila que se desliza hacia los costados. */
+    .tags-bar {
+        position: static;
+        width: 100%;
+        padding: 0.7rem 0.8rem;
+    }
+
+    .tags-bar h2 {
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    /* En celular los tags generales quedan justo debajo de "Mis tags". */
+    .tags-bar-general {
+        order: 0;
+    }
+
+    .panel-layout .panel-main {
+        order: 1;
+    }
+
+    .tags-list {
+        flex-direction: row;
+        gap: 0.4rem;
+        overflow-x: auto;
+        padding-bottom: 0.3rem;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .tag-item {
+        width: auto;
+        gap: 0.5rem;
+        white-space: nowrap;
+        border-color: rgba(255, 217, 0, 0.35);
+    }
+}
+
+/* Celulares angostos */
+@media (max-width: 480px) {
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .panel-header-user {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .post-form-actions .btn {
+        flex: 1;
+    }
+
+    .avatar-preview {
+        width: 80px;
+        height: 80px;
+    }
+}
+
+/* -------------------
+   TIEMPO REAL
+------------------- */
+
+/* Una publicación que llega en vivo brilla un momento. */
+@keyframes post-nuevo-brillo {
+    from {
+        box-shadow: 0 0 0 3px rgba(255, 217, 0, 0.85), 0 0 22px rgba(255, 217, 0, 0.55);
+    }
+    to {
+        box-shadow: 0 0 0 0 rgba(255, 217, 0, 0), 0 0 0 rgba(255, 217, 0, 0);
+    }
+}
+
+.post-nuevo {
+    animation: post-nuevo-brillo 2.5s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .post-nuevo {
+        animation: none;
+    }
+}
+
+/* Insignia del administrador (junto al nombre en el encabezado) */
+.badge-admin {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #ffd900;
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+/* ---- Reacciones: mandarina (like) y tomate (dislike) ---- */
+.post-reactions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+}
+
+.react-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 217, 0, 0.45);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.react-btn:hover:not(:disabled) {
+    transform: scale(1.06);
+    background: rgba(255, 217, 0, 0.18);
+}
+
+.react-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.react-btn.is-active {
+    opacity: 1;
+    background: rgba(255, 217, 0, 0.28);
+    border-color: #ffd900;
+}
+
+.react-emoji {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+/* Elementos de la animación: viven en <body> y se eliminan al terminar. */
+.fx-emoji {
+    position: fixed;
+    z-index: 9999;
+    font-size: 2rem;
+    line-height: 1;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.fx-splat {
+    position: fixed;
+    z-index: 9998;
+    width: 150px;
+    height: 120px;
+    pointer-events: none;
+    border-radius: 48% 52% 45% 55% / 55% 45% 55% 45%;
+    background:
+        radial-gradient(circle at 30% 35%, #ff6b4a 0 14%, transparent 15%),
+        radial-gradient(circle at 70% 60%, #d62a1a 0 16%, transparent 17%),
+        radial-gradient(circle at 55% 25%, #ff6b4a 0 9%, transparent 10%),
+        radial-gradient(circle at 50% 50%, #c4200f 0 55%, rgba(196, 32, 15, 0.6) 70%, transparent 72%);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+    will-change: transform, opacity;
+}
+
+/* ---- Botón flotante para volver al tope de la página ---- */
+.btn-subir {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.25rem;
+    z-index: 900;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    border: 2px solid #ffd900;
+    background: rgba(0, 0, 0, 0.85);
+    color: #ffd900;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    /* Oculto: abajo, achicado y transparente. Al aparecer sube y crece. */
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(24px) scale(0.6);
+    transition: opacity 0.3s ease, transform 0.3s ease, background 0.15s ease,
+                color 0.15s ease, box-shadow 0.3s ease, visibility 0s linear 0.3s;
+}
+
+.btn-subir.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+    transition-delay: 0s;
+}
+
+.btn-subir.visible:hover:not(.subiendo) {
+    transform: translateY(-3px);
+    background: #ffd900;
+    color: #000;
+}
+
+.btn-subir-flecha {
+    display: block;
+}
+
+/* Mientras te lleva arriba: el botón se infla, brilla y la flecha sale disparada. */
+.btn-subir.subiendo {
+    transform: translateY(-6px) scale(1.15);
+    background: #ffd900;
+    color: #000;
+    box-shadow: 0 0 0 5px rgba(255, 217, 0, 0.25), 0 0 24px rgba(255, 217, 0, 0.8);
+}
+
+.btn-subir.subiendo .btn-subir-flecha {
+    animation: flecha-sube 0.55s ease-in infinite;
+}
+
+@keyframes flecha-sube {
+    0%   { transform: translateY(14px); opacity: 0; }
+    40%  { opacity: 1; }
+    100% { transform: translateY(-16px); opacity: 0; }
+}
+
+/* ---- Cuadro "Mandrainos activos" (arriba a la derecha) ---- */
+.activos-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    width: 78px;
+    height: 78px;
+    padding: 0.3rem;
+    box-sizing: border-box;
+    border: 2px solid #ffd900;
+    border-radius: 8px;
+    background: rgba(255, 217, 0, 0.08);
+    color: #fff;
+    text-align: center;
+}
+
+.activos-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #ffd900;
+}
+
+.activos-punto {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 0.25rem;
+    border-radius: 50%;
+    background: #3ddc5a;
+    vertical-align: middle;
+    animation: activos-late 1.8s ease-in-out infinite;
+}
+
+.activos-num {
+    font-size: 1.6rem;
+    line-height: 1;
+    color: #fff;
+}
+
+.activos-cambio {
+    animation: activos-pop 0.45s ease-out;
+}
+
+@keyframes activos-late {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(61, 220, 90, 0.7); }
+    50%      { box-shadow: 0 0 0 5px rgba(61, 220, 90, 0); }
+}
+
+@keyframes activos-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); color: #ffd900; }
+    100% { transform: scale(1); }
+}
+
+/* Los saltos de línea que escribió el usuario (Enter) se muestran tal cual,
+   en publicaciones y respuestas. El título sigue siendo de una sola línea. */
+.post-body p,
+.reply-body {
+    white-space: pre-wrap;
+}
+
+/* -------------------
+   MENÚS DESPLEGABLES Y NOTIFICACIONES (header)
+------------------- */
+
+.panel-header {
+    /* Fija arriba al bajar. Contiene a los menús desplegables (position: absolute). */
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 60;
+    min-width: 200px;
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.dropdown-panel[hidden] {
+    display: none;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    padding: 0.2rem 0.7rem 0.2rem 0.25rem;
+}
+
+.user-menu-btn:hover,
+.user-menu-btn[aria-expanded="true"] {
+    border-color: #ffd900;
+}
+
+.user-menu-flecha {
+    color: #ffd900;
+    font-size: 0.8rem;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.2);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    text-decoration: none;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+    background: rgba(255, 217, 0, 0.15);
+    color: #ffd900;
+    outline: none;
+}
+
+/* ---- Campanita ---- */
+.notif-btn {
+    position: relative;
+    background: none;
+    border: 2px solid #ffd900;
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.1rem;
+    height: 40px;
+    line-height: 1;
+    padding: 0;
+    width: 40px;
+}
+
+.notif-btn:hover,
+.notif-btn[aria-expanded="true"] {
+    background: rgba(255, 217, 0, 0.15);
+}
+
+.notif-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.notif-badge[hidden] {
+    display: none;
+}
+
+.notif-pulso {
+    animation: notif-pop 0.6s ease-out;
+}
+
+@keyframes notif-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.6); }
+    100% { transform: scale(1); }
+}
+
+.notif-panel {
+    width: 340px;
+    max-width: calc(100vw - 1.5rem);
+}
+
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.35);
+    color: #ffd900;
+}
+
+.notif-head .btn-link {
+    font-size: 0.78rem;
+}
+
+.notif-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.notif-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.15);
+    color: #cfcfcf;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.notif-item:hover,
+.notif-item:focus-visible {
+    background: rgba(255, 217, 0, 0.12);
+    outline: none;
+}
+
+.notif-item.no-leida {
+    background: rgba(255, 217, 0, 0.08);
+    border-left: 3px solid #ffd900;
+    color: #fff;
+}
+
+.notif-texto strong {
+    color: #ffd900;
+}
+
+.notif-extracto {
+    color: #9a9a9a;
+    font-size: 0.8rem;
+}
+
+.notif-fecha {
+    color: #8a8a8a;
+    font-size: 0.72rem;
+}
+
+.notif-empty {
+    margin: 0;
+    padding: 1rem;
+    color: #8a8a8a;
+    font-size: 0.85rem;
+}
+
+.notif-empty[hidden] {
+    display: none;
+}
+
+/* Un hilo o respuesta que se resalta al venir desde una notificación. */
+.reply.post-nuevo {
+    border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notif-pulso {
+        animation: none;
+    }
+}
+
+/* En pantallas angostas los paneles ocupan el ancho del encabezado. */
+@media (max-width: 600px) {
+    .dropdown {
+        position: static;
+    }
+
+    .dropdown-panel,
+    .notif-panel {
+        top: 100%;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        margin-top: 0.3rem;
+    }
+
+    .user-menu-nombre {
+        max-width: 11rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* -------------------
+   BARRA SUPERIOR COMPACTA
+   panel.php le agrega la clase "compacto" al bajar y se la saca al volver
+   arriba. Sin transiciones de tamaño: el script mide la altura antes y
+   después para que el contenido no salte.
+------------------- */
+
+.panel-header.compacto {
+    padding: 0.35rem 2rem;
+    gap: 0.3rem 1rem;
+    border-bottom-width: 2px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65);
+}
+
+.panel-header.compacto h1 {
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.panel-header.compacto .panel-header-user {
+    gap: 0.6rem;
+    flex-wrap: nowrap;
+}
+
+.panel-header.compacto .activos-box {
+    flex-direction: row;
+    width: auto;
+    height: 32px;
+    padding: 0 0.7rem;
+    gap: 0.4rem;
+    border-radius: 999px;
+}
+
+/* Solo queda el puntito verde y el número (el texto sigue en el tooltip). */
+.panel-header.compacto .activos-label {
+    font-size: 0;
+}
+
+.panel-header.compacto .activos-punto {
+    margin-right: 0;
+}
+
+.panel-header.compacto .activos-num {
+    font-size: 1rem;
+}
+
+.panel-header.compacto .notif-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+}
+
+.panel-header.compacto .notif-badge {
+    top: -5px;
+    right: -5px;
+}
+
+.panel-header.compacto .avatar {
+    width: 28px;
+    height: 28px;
+}
+
+.panel-header.compacto .user-menu-btn {
+    padding: 0.1rem 0.6rem 0.1rem 0.15rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+    .panel-header.compacto {
+        padding: 0.35rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .panel-header.compacto {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-header.compacto h1 {
+        font-size: 0.95rem;
+    }
+
+    .panel-header.compacto .panel-header-user {
+        width: auto;
+        justify-content: flex-end;
+    }
+
+    .panel-header.compacto .user-menu-nombre,
+    .panel-header.compacto .user-menu-flecha {
+        display: none;
+    }
+}
+
+/* -------------------
+   TAGS GENERALES: fijados y "ver todos"
+------------------- */
+
+.tags-list li.tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.tag-row .tag-item {
+    flex: 1;
+    min-width: 0;
+}
+
+.tag-pin-marca {
+    margin-right: 0.3rem;
+    font-size: 0.75rem;
+}
+
+/* Botón del admin para fijar / dejar de fijar. */
+.tag-pin-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: #8a8a8a;
+    cursor: pointer;
+    font-size: 0.8rem;
+    line-height: 1;
+    padding: 0.4rem 0.45rem;
+}
+
+.tag-pin-btn:hover,
+.tag-pin-btn:focus-visible {
+    border-color: #ffd900;
+    color: #ffd900;
+    outline: none;
+}
+
+.tag-pin-btn.activo {
+    color: #ffd900;
+}
+
+.tags-ver-todos {
+    display: block;
+    width: 100%;
+    margin-top: 0.7rem;
+    text-align: center;
+}
+
+.tags-modal {
+    width: min(420px, calc(100vw - 2rem));
+    max-height: 80vh;
+    box-sizing: border-box;
+    padding: 1rem;
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    color: #fff;
+}
+
+.tags-modal[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.tags-modal::backdrop {
+    background: rgba(0, 0, 0, 0.75);
+}
+
+.tags-modal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.7rem;
+}
+
+.tags-modal-head h2 {
+    width: auto;
+    margin: 0;
+    padding: 0;
+    color: #ffd900;
+    font-size: 1.05rem;
+}
+
+/* Siempre en columna con scroll vertical, también en celular (donde .tags-list va en fila). */
+.tags-modal .tags-list {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.tags-modal .tag-item {
+    white-space: normal;
+}
+
+/* -------------------
+   BARRAS DE TAGS CON SCROLL PROPIO
+   Fijas junto a la barra superior, con alto máximo igual al de la pantalla
+   visible: si hay muchos tags, la lista se desplaza dentro de la barra en
+   vez de quedar cortada. En celular la barra es una fila normal, sin esto.
+------------------- */
+@media (min-width: 761px) {
+    .tags-bar {
+        max-height: calc(100vh - 5.5rem);
+        max-height: calc(100dvh - 5.5rem);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #ffd900 #000;
+    }
+}
+
+/* -------------------
+   MASCOTA: COBAYO EN LA BARRA SUPERIOR
+   Un círculo con la cara de mandraina que pasea por la barra. La pista es
+   transparente a los clics (pointer-events: none): solo el cobayo los recibe,
+   así no tapa los botones de la barra. Queda por debajo de los desplegables
+   (z-index 60).
+------------------- */
+
+.cobayo-pista {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3px;
+    height: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.cobayo {
+    --tam: 34px;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--tam);
+    height: var(--tam);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cobayo:focus-visible {
+    outline: 2px solid #ffd900;
+    outline-offset: 2px;
+}
+
+.cobayo-cuerpo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #ffd900;
+    box-sizing: border-box;
+    background-color: #fff;
+    background-image: url("images.jpg");
+    /* Recorte sobre la carita (esquina superior izquierda) para que no se lea el texto de la foto */
+    background-size: 207%;
+    background-position: 25% 0%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    transform-origin: 50% 100%;
+}
+
+.cobayo-globo {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%) scale(0.8);
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #ffd900;
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.cobayo-globo.visible {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+.panel-header.compacto .cobayo-pista {
+    bottom: 2px;
+}
+
+.panel-header.compacto .cobayo {
+    --tam: 24px;
+}
+
+.panel-header.compacto .cobayo-cuerpo {
+    border-width: 1.5px;
+}
+
+@media (max-width: 480px) {
+    .cobayo {
+        --tam: 28px;
+    }
+}
