@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/includes/auth_check.php';
+require_once __DIR__ . '/includes/Admin.php';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -15,7 +16,7 @@ require_once __DIR__ . '/includes/auth_check.php';
         <h1>Mandraina Forum</h1>
         <div class="panel-header-user">
             <img class="avatar" src="avatar.php?id=<?= (int) $_SESSION['user_id'] ?>" alt="Tu avatar" />
-            <span>Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong></span>
+            <span>Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong><?php if (Admin::esAdmin()): ?> <span class="badge-admin">ADMIN</span><?php endif; ?></span>
             <a href="perfil.php" class="btn btn-register btn-small">Mi perfil</a>
             <a href="logout.php" class="btn btn-register btn-small">Cerrar sesión</a>
         </div>
@@ -64,6 +65,7 @@ require_once __DIR__ . '/includes/auth_check.php';
         const NOVEDADES_URL = 'api/v1/novedades.php';
         const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
+        const esAdmin = <?= Admin::esAdmin() ? 'true' : 'false' ?>;
 
         const feedEl = document.getElementById('feed');
         const feedStatus = document.getElementById('feed-status');
@@ -338,10 +340,10 @@ require_once __DIR__ . '/includes/auth_check.php';
                             ${post.tags.map((t) => `<button type="button" class="tag-chip" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`).join('')}
                         </div>
                     ` : ''}
-                    ${esPropia ? `
+                    ${(esPropia || esAdmin) ? `
                         <div class="post-card-actions">
-                            <button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}" data-tags="${escapeHtml((post.tags || []).join(' '))}">Editar</button>
-                            <button class="btn-link delete-btn" data-id="${post.id}">Eliminar</button>
+                            ${esPropia ? `<button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}" data-tags="${escapeHtml((post.tags || []).join(' '))}">Editar</button>` : ''}
+                            <button class="btn-link delete-btn" data-id="${post.id}" data-autor="${escapeHtml(post.nickname)}" data-ajena="${esPropia ? '0' : '1'}">Eliminar</button>
                         </div>
                     ` : ''}
                     <div class="post-replies-bar">
@@ -380,7 +382,7 @@ require_once __DIR__ . '/includes/auth_check.php';
                         </div>
                     ` : ''}
                     <p class="reply-body" ${sensible ? 'hidden' : ''}>${escapeHtml(r.contenido)}</p>
-                    ${esPropia ? `<button type="button" class="btn-link delete-reply-btn" data-id="${r.id}">Eliminar</button>` : ''}
+                    ${(esPropia || esAdmin) ? `<button type="button" class="btn-link delete-reply-btn" data-id="${r.id}" data-autor="${escapeHtml(r.nickname)}" data-ajena="${esPropia ? '0' : '1'}">Eliminar</button>` : ''}
                 </div>
             `;
         }
@@ -540,7 +542,10 @@ require_once __DIR__ . '/includes/auth_check.php';
             }
 
             if (e.target.classList.contains('delete-reply-btn')) {
-                if (!confirm('¿Seguro que querés eliminar esta respuesta?')) return;
+                const msgR = e.target.dataset.ajena === '1'
+                    ? `Como administrador, vas a eliminar la respuesta de ${e.target.dataset.autor}. ¿Continuar?`
+                    : '¿Seguro que querés eliminar esta respuesta?';
+                if (!confirm(msgR)) return;
                 const card = e.target.closest('.post-card');
 
                 try {
@@ -581,7 +586,10 @@ require_once __DIR__ . '/includes/auth_check.php';
 
             if (e.target.classList.contains('delete-btn')) {
                 const id = e.target.dataset.id;
-                if (!confirm('¿Seguro que querés eliminar esta publicación?')) return;
+                const msgP = e.target.dataset.ajena === '1'
+                    ? `Como administrador, vas a eliminar la publicación de ${e.target.dataset.autor}. ¿Continuar?`
+                    : '¿Seguro que querés eliminar esta publicación?';
+                if (!confirm(msgP)) return;
 
                 try {
                     const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });

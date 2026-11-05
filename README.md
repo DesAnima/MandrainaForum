@@ -17,6 +17,26 @@ sus propias publicaciones (posts), y ver las publicaciones de los demás.
 - **Publicación** (`publicaciones`): título, contenido, autor (relación con Usuario),
   fecha de creación/actualización. Entidad principal del AE1.
 
+## Administrador
+
+Hay un único usuario administrador, que puede eliminar **cualquier**
+publicación o respuesta (no solo las propias). Se define por variables de
+entorno:
+
+- `ADMIN_NICKNAME`: nickname del admin; por defecto **`DesAnima1`**. Queda
+  reservado (sin distinguir mayúsculas): nadie puede registrarlo por el flujo
+  del QR.
+- `ADMIN_PASSWORD`: contraseña inicial (mínimo 10 caracteres).
+
+Al arrancar el contenedor, `docker/start.sh` ejecuta `bin/crear_admin.php`, que
+crea la cuenta si no existe (si ya existe no la modifica). Para cambiar la
+contraseña: `php bin/crear_admin.php --reset` con el nuevo `ADMIN_PASSWORD`.
+
+El permiso se valida en el servidor (`includes/Admin.php`, usado por
+`PublicacionController::destroy` y `RespuestaController::destroy`); el panel
+solo muestra el botón *Eliminar* en todas las tarjetas y una insignia ADMIN.
+Cada borrado ajeno queda en el log (`[admin] ... eliminó la publicación #id`).
+
 ## Registro anónimo por QR
 
 No hay formulario de contraseña en el registro: el usuario solo elige un
@@ -124,7 +144,7 @@ Base: `/api/v1/publicaciones`
 | GET    | `/api/v1/publicaciones/{id}`  | Obtener una publicación por id        | 200 / 404                       |
 | POST   | `/api/v1/publicaciones`       | Crear una publicación (requiere sesión)| 201 / 400 / 401                |
 | PUT    | `/api/v1/publicaciones/{id}`  | Editar una publicación propia         | 200 / 400 / 401 / 403 / 404     |
-| DELETE | `/api/v1/publicaciones/{id}`  | Eliminar una publicación propia       | 204 / 401 / 403 / 404           |
+| DELETE | `/api/v1/publicaciones/{id}`  | Eliminar una publicación propia (o cualquiera, si sos admin) | 204 / 401 / 403 / 404           |
 
 `GET /api/v1/novedades.php` devuelve la "versión" del contenido (ver *Actualización en vivo*). Además: `GET /api/v1/health` informa el estado de PostgreSQL, Redis y
 RabbitMQ (200 si PostgreSQL responde, 503 si no). `POST /api/v1/publicaciones`

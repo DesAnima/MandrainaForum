@@ -16,6 +16,8 @@ x-app-env: &app-env
   AMQP_URL: ${AMQP_URL:-amqp://mandraina:mandraina@rabbitmq:5672/}
   TRUST_PROXY: ${TRUST_PROXY:-0}
   APP_ENV: ${APP_ENV:-local}
+  ADMIN_NICKNAME: ${ADMIN_NICKNAME:-}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
 
 services:
   web:

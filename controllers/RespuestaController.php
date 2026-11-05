@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
 require_once __DIR__ . '/../includes/Texto.php';
 require_once __DIR__ . '/../includes/FiltroContenido.php';
+require_once __DIR__ . '/../includes/Admin.php';
 
 class RespuestaController
 {
@@ -113,11 +114,16 @@ class RespuestaController
             $this->jsonResponse(404, ['error' => 'Respuesta no encontrada', 'id' => $id]);
         }
 
-        if ((int) $respuesta['user_id'] !== $userId) {
+        // La autora puede borrar la suya; el administrador, cualquiera.
+        $esAutor = (int) $respuesta['user_id'] === $userId;
+        if (!$esAutor && !Admin::esAdmin()) {
             $this->jsonResponse(403, ['error' => 'No podés eliminar una respuesta que no te pertenece.']);
         }
 
         $this->model()->delete($id);
+        if (!$esAutor) {
+            error_log("[admin] {$_SESSION['nickname']} (#{$userId}) eliminó la respuesta #{$id} de {$respuesta['nickname']} (#{$respuesta['user_id']})");
+        }
         $this->notificarCambio('respuesta.eliminada', (int) $respuesta['publicacion_id'], $id, $userId);
         http_response_code(204);
         exit;

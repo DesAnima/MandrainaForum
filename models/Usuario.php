@@ -19,6 +19,7 @@
 
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../config/redis.php';
+require_once __DIR__ . '/../includes/Admin.php';
 
 class Usuario
 {
@@ -206,6 +207,12 @@ class Usuario
 
         if (!$this->nicknameValido($nickname)) {
             throw new InvalidArgumentException('El nickname debe tener entre 3 y 20 caracteres (letras, números o "_").');
+        }
+
+        // El nickname del administrador no se puede registrar por el flujo
+        // público: la cuenta se crea con bin/crear_admin.php.
+        if (Admin::estaReservado($nickname)) {
+            throw new InvalidArgumentException('Ese nickname ya está en uso o tiene un registro en curso.');
         }
 
         if ($this->redis !== null) {

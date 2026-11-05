@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/RateLimiter.php';
 require_once __DIR__ . '/../includes/Texto.php';
 require_once __DIR__ . '/../includes/Tags.php';
 require_once __DIR__ . '/../includes/FiltroContenido.php';
+require_once __DIR__ . '/../includes/Admin.php';
 
 class PublicacionController
 {
@@ -184,11 +185,16 @@ class PublicacionController
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $id]);
         }
 
-        if ((int) $publicacion['user_id'] !== $userId) {
+        // El autor puede borrar la suya; el administrador, cualquiera.
+        $esAutor = (int) $publicacion['user_id'] === $userId;
+        if (!$esAutor && !Admin::esAdmin()) {
             $this->jsonResponse(403, ['error' => 'No podés eliminar una publicación que no te pertenece.']);
         }
 
         $this->model()->delete($id);
+        if (!$esAutor) {
+            error_log("[admin] {$_SESSION['nickname']} (#{$userId}) eliminó la publicación #{$id} de {$publicacion['nickname']} (#{$publicacion['user_id']})");
+        }
         $this->notificarCambio('publicacion.eliminada', $id, $userId);
         http_response_code(204);
         exit;

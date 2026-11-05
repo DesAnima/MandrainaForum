@@ -518,3 +518,17 @@ html {
         animation: none;
     }
 }
+
+/* Insignia del administrador (junto al nombre en el encabezado) */
+.badge-admin {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: 999px;
+    background: #ffd900;
+    color: #000;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
