@@ -1203,3 +1203,19 @@ html {
 .tags-modal .tag-item {
     white-space: normal;
 }
+
+/* -------------------
+   BARRAS DE TAGS CON SCROLL PROPIO
+   Fijas junto a la barra superior, con alto máximo igual al de la pantalla
+   visible: si hay muchos tags, la lista se desplaza dentro de la barra en
+   vez de quedar cortada. En celular la barra es una fila normal, sin esto.
+------------------- */
+@media (min-width: 761px) {
+    .tags-bar {
+        max-height: calc(100vh - 5.5rem);
+        max-height: calc(100dvh - 5.5rem);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: #ffd900 #000;
+    }
+}
