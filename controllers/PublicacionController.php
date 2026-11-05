@@ -87,6 +87,81 @@ class PublicacionController
         return (int) $_SESSION['user_id'];
     }
 
+    // Candado corto en Redis (por usuario) para que dos envíos simultáneos no
+    // se pisen. Si otro envío lo tiene, se espera hasta ~3 s a que termine.
+    // Devuelve la clave si lo tomó, o null (sin Redis, o no se pudo: no bloquea).
+    private function tomarCandado(string $nombre, int $userId): ?string
+    {
+        $redis = getRedis();
+        if ($redis === null) {
+            return null;
+        }
+
+        $clave = "lock:{$nombre}:{$userId}";
+        try {
+            for ($i = 0; $i < 10; $i++) {
+                if ((string) $redis->set($clave, '1', 'EX', 10, 'NX') === 'OK') {
+                    return $clave;
+                }
+                usleep(300000);
+            }
+        } catch (Throwable $e) {
+            error_log('[candado] ' . $e->getMessage());
+        }
+        return null;
+    }
+
+    private function soltarCandado(?string $clave): void
+    {
+        if ($clave === null) {
+            return;
+        }
+        try {
+            getRedis()?->del([$clave]);
+        } catch (Throwable $e) {
+            // expira solo a los 10 s
+        }
+    }
+
+    private function requireAdmin(): int
+    {
+        $userId = $this->requireAuth();
+        if (!Admin::esAdmin()) {
+            $this->jsonResponse(403, ['error' => 'Solo el administrador puede hacer esto.']);
+        }
+        return $userId;
+    }
+
+    // GET /api/v1/duplicadas.php: cuántas copias hay (no borra nada).
+    public function duplicadas(): void
+    {
+        $this->requireAdmin();
+        $dups = $this->model()->buscarDuplicadas();
+        $this->jsonResponse(200, [
+            'cantidad' => count($dups),
+            'respuestas_afectadas' => array_sum(array_column($dups, 'respuestas')),
+            'duplicadas' => $dups,
+        ]);
+    }
+
+    // DELETE /api/v1/duplicadas.php: elimina las copias y conserva la más antigua de cada grupo.
+    public function eliminarDuplicadas(): void
+    {
+        $userId = $this->requireAdmin();
+        $dups = $this->model()->eliminarDuplicadas();
+
+        if ($dups) {
+            Feed::invalidar();
+            error_log("[admin] {$_SESSION['nickname']} (#{$userId}) eliminó " . count($dups)
+                . ' publicaciones duplicadas (#' . implode(', #', array_column($dups, 'id')) . ')');
+        }
+
+        $this->jsonResponse(200, [
+            'eliminadas' => count($dups),
+            'respuestas_afectadas' => array_sum(array_column($dups, 'respuestas')),
+        ]);
+    }
+
     // Tras cualquier escritura: se descarta el feed cacheado y se avisa por
     // RabbitMQ para que el worker haga las tareas secundarias (moderación,
     // recalentar la caché).
@@ -150,7 +225,20 @@ class PublicacionController
         [$titulo, $contenido] = $this->validarCampos($body);
         $tags = $this->validarTags($body['tags'] ?? []);
 
-        $nueva = $this->model()->create($userId, $titulo, $contenido, $tags);
+        // Un solo envío a la vez por usuario (Redis), y sin duplicar: si llega
+        // dos veces lo mismo (doble clic, reintento), la segunda devuelve la
+        // publicación ya creada en vez de crear otra.
+        $candado = $this->tomarCandado('post', $userId);
+        try {
+            [$nueva, $creada] = $this->model()->crearSinDuplicar($userId, $titulo, $contenido, $tags);
+        } finally {
+            $this->soltarCandado($candado);
+        }
+
+        if (!$creada) {
+            $this->jsonResponse(200, Feed::marcar($nueva)); // ya existía: no hay evento ni feed nuevo
+        }
+
         $this->notificarCambio('publicacion.creada', (int) $nueva['id'], $userId);
         $this->jsonResponse(201, Feed::marcar($nueva));
     }

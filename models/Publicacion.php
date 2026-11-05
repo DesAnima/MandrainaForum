@@ -6,6 +6,14 @@ require_once __DIR__ . '/Reaccion.php';
 
 class Publicacion
 {
+    // Si el mismo usuario envía exactamente el mismo título y contenido dentro
+    // de esta ventana, no se crea otra publicación: se devuelve la que ya existe.
+    public const VENTANA_ANTIDUPLICADO = 60; // segundos
+
+    // Al limpiar duplicados existentes: una publicación es copia de otra del
+    // mismo usuario con igual título y contenido creada hasta este tiempo después.
+    public const VENTANA_DUPLICADAS = 600; // segundos (10 minutos)
+
     private PDO $pdo;
 
     public function __construct()
@@ -165,6 +173,122 @@ class Publicacion
         }
 
         return $nueva;
+    }
+
+    /**
+     * Como create(), pero sin duplicar: si el mismo usuario ya publicó
+     * exactamente lo mismo en los últimos VENTANA_ANTIDUPLICADO segundos
+     * (doble clic, reintento del navegador...), devuelve esa publicación.
+     * El control va en el propio INSERT (una sola sentencia atómica).
+     *
+     * @return array{0: array, 1: bool}  [publicación, true si se creó ahora]
+     */
+    public function crearSinDuplicar(int $userId, string $titulo, string $contenido, array $tags = []): array
+    {
+        // Parámetros con nombres distintos: PDO con consultas nativas no
+        // permite repetir un mismo nombre (ver tagsDeParticipacion).
+        $sql = "INSERT INTO publicaciones (user_id, titulo, contenido)
+                SELECT CAST(:user_id AS integer), CAST(:titulo AS text), CAST(:contenido AS text)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM publicaciones
+                    WHERE user_id = :user_id2 AND titulo = :titulo2 AND contenido = :contenido2
+                      AND fecha_creacion >= NOW() - (CAST(:ventana AS integer) * INTERVAL '1 second')
+                )
+                RETURNING id";
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([
+            ':user_id' => $userId, ':titulo' => $titulo, ':contenido' => $contenido,
+            ':user_id2' => $userId, ':titulo2' => $titulo, ':contenido2' => $contenido,
+            ':ventana' => self::VENTANA_ANTIDUPLICADO,
+        ]);
+        $newId = $stmt->fetchColumn();
+
+        if ($newId === false) {
+            // Ya había una igual y reciente: se devuelve esa.
+            $sel = $this->pdo->prepare("
+                SELECT id FROM publicaciones
+                WHERE user_id = :u AND titulo = :t AND contenido = :c
+                ORDER BY id DESC LIMIT 1
+            ");
+            $sel->execute([':u' => $userId, ':t' => $titulo, ':c' => $contenido]);
+            $existente = $this->getById((int) $sel->fetchColumn());
+            if ($existente === null) {
+                throw new RuntimeException('No se pudo crear ni encontrar la publicación.');
+            }
+            return [$existente, false];
+        }
+
+        $newId = (int) $newId;
+        try {
+            $this->guardarTags($newId, $tags);
+        } catch (Throwable $e) {
+            $this->delete($newId);
+            throw $e;
+        }
+
+        $nueva = $this->getById($newId);
+        if ($nueva === null) {
+            throw new RuntimeException("La publicación #{$newId} se insertó pero no se pudo leer de nuevo.");
+        }
+        return [$nueva, true];
+    }
+
+    private static function normalizarTexto(string $texto): string
+    {
+        return mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $texto)));
+    }
+
+    /**
+     * Publicaciones duplicadas que ya existen: mismo usuario, mismo título y
+     * contenido (sin distinguir mayúsculas ni espacios de más), creadas dentro
+     * de VENTANA_DUPLICADAS de la original. Se conserva siempre la más antigua.
+     *
+     * @return array<int, array{id:int, original_id:int, respuestas:int}>
+     */
+    public function buscarDuplicadas(): array
+    {
+        $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,
+                       EXTRACT(EPOCH FROM p.fecha_creacion)::bigint AS ts,
+                       (SELECT COUNT(*) FROM respuestas r
+                        WHERE r.publicacion_id = p.id)::int AS respuestas
+                FROM publicaciones p
+                ORDER BY p.fecha_creacion ASC, p.id ASC";
+
+        $conservadas = []; // huella -> [id, ts] de la última publicación que se conserva
+        $duplicadas = [];
+
+        foreach ($this->pdo->query($sql) as $fila) {
+            $huella = md5($fila['user_id'] . '|' . self::normalizarTexto($fila['titulo'])
+                . '|' . self::normalizarTexto($fila['contenido']));
+            $ts = (int) $fila['ts'];
+
+            if (isset($conservadas[$huella]) && $ts - $conservadas[$huella]['ts'] <= self::VENTANA_DUPLICADAS) {
+                $duplicadas[] = [
+                    'id' => (int) $fila['id'],
+                    'original_id' => $conservadas[$huella]['id'],
+                    'respuestas' => (int) $fila['respuestas'],
+                ];
+                continue;
+            }
+
+            $conservadas[$huella] = ['id' => (int) $fila['id'], 'ts' => $ts];
+        }
+
+        return $duplicadas;
+    }
+
+    /** Elimina las copias que encuentra buscarDuplicadas() y las devuelve. */
+    public function eliminarDuplicadas(): array
+    {
+        $duplicadas = $this->buscarDuplicadas();
+
+        foreach (array_chunk(array_column($duplicadas, 'id'), 100) as $lote) {
+            $marcas = implode(',', array_fill(0, count($lote), '?'));
+            $stmt = $this->pdo->prepare("DELETE FROM publicaciones WHERE id IN ({$marcas})");
+            $stmt->execute($lote);
+        }
+
+        return $duplicadas;
     }
 
     // Con $tags en null los tags quedan como están; con una lista (aunque

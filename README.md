@@ -78,6 +78,28 @@ cuentan una vez y al cerrar sesión se sale del conteo enseguida. Con Redis es
 un conjunto ordenado (`presencia`); sin Redis usa la tabla `presencia` de
 PostgreSQL (`includes/Presencia.php`).
 
+## Publicaciones duplicadas
+
+**Causa:** el formulario no se bloqueaba mientras esperaba al servidor, así que
+un segundo clic en *Publicar* (o un segundo Enter en el título) enviaba lo
+mismo otra vez. **Prevención**, en tres capas:
+
+1. El panel deshabilita el botón ("Enviando...") hasta recibir la respuesta.
+2. El servidor toma un candado corto en Redis por usuario, para que dos envíos
+   simultáneos no se pisen.
+3. `Publicacion::crearSinDuplicar` inserta solo si el mismo usuario no publicó
+   exactamente lo mismo en los últimos 60 s (todo en una sola sentencia SQL); si
+   ya existía devuelve esa (200 en vez de 201), sin crear otra.
+
+**Limpieza de las que ya existen** (solo administrador): botón *🧹 Duplicados*
+en el panel (cuenta, pide confirmación y elimina), `GET`/`DELETE
+/api/v1/duplicadas.php`, o por consola `php bin/limpiar_duplicados.php
+--simular` (sin `--simular` borra de verdad). Es duplicada la publicación del
+mismo usuario con igual título y contenido (sin distinguir mayúsculas ni
+espacios de más) creada hasta 10 minutos después de la original; se conserva
+siempre la más antigua. Al borrar una copia se borran también sus respuestas y
+reacciones.
+
 ## Registro anónimo por QR
 
 No hay formulario de contraseña en el registro: el usuario solo elige un

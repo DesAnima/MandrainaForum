@@ -21,6 +21,9 @@ require_once __DIR__ . '/includes/Admin.php';
             </div>
             <img class="avatar" src="avatar.php?id=<?= (int) $_SESSION['user_id'] ?>" alt="Tu avatar" />
             <span>Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong><?php if (Admin::esAdmin()): ?> <span class="badge-admin">ADMIN</span><?php endif; ?></span>
+            <?php if (Admin::esAdmin()): ?>
+            <button type="button" id="btn-duplicados" class="btn btn-register btn-small" title="Buscar y eliminar publicaciones duplicadas">🧹 Duplicados</button>
+            <?php endif; ?>
             <a href="perfil.php" class="btn btn-register btn-small">Mi perfil</a>
             <a href="logout.php" class="btn btn-register btn-small">Cerrar sesión</a>
         </div>
@@ -69,6 +72,7 @@ require_once __DIR__ . '/includes/Admin.php';
         const RESPUESTAS_URL = 'api/v1/respuestas.php';
         const TAGS_URL = 'api/v1/tags.php';
         const REACCIONES_URL = 'api/v1/reacciones.php';
+        const DUPLICADAS_URL = 'api/v1/duplicadas.php';
         const NOVEDADES_URL = 'api/v1/novedades.php';
         const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
@@ -697,8 +701,16 @@ require_once __DIR__ . '/includes/Admin.php';
             cancelBtn.hidden = true;
         }
 
+        let enviandoPost = false; // evita que un doble clic / doble Enter mande la publicación dos veces
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (enviandoPost) return;
+            enviandoPost = true;
+
+            const textoBoton = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Enviando...';
 
             const id = idField.value;
             const payload = {
@@ -729,6 +741,10 @@ require_once __DIR__ . '/includes/Admin.php';
             } catch (err) {
                 console.error('Error al guardar la publicación:', err);
                 alert('Error de red al guardar la publicación.');
+            } finally {
+                enviandoPost = false;
+                submitBtn.disabled = false;
+                if (submitBtn.textContent === 'Enviando...') submitBtn.textContent = textoBoton;
             }
         });
 
@@ -881,6 +897,39 @@ require_once __DIR__ . '/includes/Admin.php';
         }
 
         renderTagsBar();
+
+        // ---- Admin: limpiar publicaciones duplicadas ----
+        const btnDuplicados = document.getElementById('btn-duplicados');
+        if (btnDuplicados) {
+            btnDuplicados.addEventListener('click', async () => {
+                btnDuplicados.disabled = true;
+                try {
+                    const res = await fetch(DUPLICADAS_URL, { cache: 'no-store' });
+                    const info = await res.json();
+                    if (!res.ok) { alert(info.error || 'No se pudo buscar duplicados.'); return; }
+
+                    if (info.cantidad === 0) { alert('No hay publicaciones duplicadas. 👌'); return; }
+
+                    const detalle = info.respuestas_afectadas > 0
+                        ? ` (con ${info.respuestas_afectadas} respuestas, que también se borrarán)`
+                        : '';
+                    if (!confirm(`Se encontraron ${info.cantidad} publicaciones duplicadas${detalle}.\n\nSe conserva la más antigua de cada grupo. ¿Eliminar las copias?`)) return;
+
+                    const del = await fetch(DUPLICADAS_URL, { method: 'DELETE' });
+                    const r = await del.json();
+                    if (!del.ok) { alert(r.error || 'No se pudieron eliminar.'); return; }
+
+                    alert(`Listo: se eliminaron ${r.eliminadas} publicaciones duplicadas.`);
+                    cargarPublicaciones();
+                    cargarMisTags();
+                } catch (err) {
+                    console.error('Error al limpiar duplicados:', err);
+                    alert('Error de red al limpiar duplicados.');
+                } finally {
+                    btnDuplicados.disabled = false;
+                }
+            });
+        }
 
         // ---- Botón "volver arriba": aparece al bajar y te lleva al tope con animación ----
         // El desplazamiento se anima por JavaScript (con aceleración y frenado
