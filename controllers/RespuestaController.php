@@ -2,6 +2,7 @@
 // controllers/RespuestaController.php
 require_once __DIR__ . '/../models/Publicacion.php';
 require_once __DIR__ . '/../models/Respuesta.php';
+require_once __DIR__ . '/../models/Notificacion.php';
 require_once __DIR__ . '/../includes/Feed.php';
 require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
@@ -66,6 +67,23 @@ class RespuestaController
         ]);
     }
 
+    // Avisa al autor de la publicación de que le respondieron. No se avisa
+    // cuando alguien responde en su propia publicación, y un fallo acá nunca
+    // tiene que impedir que la respuesta se guarde.
+    private function avisarAlAutor(array $publicacion, int $autorRespuestaId, int $respuestaId): void
+    {
+        $destinatarioId = (int) $publicacion['user_id'];
+        if ($destinatarioId === $autorRespuestaId) {
+            return;
+        }
+
+        try {
+            (new Notificacion())->crear($destinatarioId, $autorRespuestaId, (int) $publicacion['id'], $respuestaId);
+        } catch (Throwable $e) {
+            error_log('[notificaciones] ' . $e->getMessage());
+        }
+    }
+
     public function index(int $publicacionId): void
     {
         if (!$this->publicaciones()->getById($publicacionId)) {
@@ -96,11 +114,13 @@ class RespuestaController
             $this->jsonResponse(400, ['error' => 'La respuesta no puede superar los ' . self::CONTENIDO_MAX . ' caracteres.']);
         }
 
-        if (!$this->publicaciones()->getById($publicacionId)) {
+        $publicacion = $this->publicaciones()->getById($publicacionId);
+        if (!$publicacion) {
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $publicacionId]);
         }
 
         $nueva = $this->model()->create($publicacionId, $userId, $contenido);
+        $this->avisarAlAutor($publicacion, $userId, (int) $nueva['id']);
         $this->notificarCambio('respuesta.creada', $publicacionId, (int) $nueva['id'], $userId);
         $this->jsonResponse(201, $this->marcar($nueva));
     }

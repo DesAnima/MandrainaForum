@@ -19,13 +19,34 @@ require_once __DIR__ . '/includes/Admin.php';
                 <span class="activos-label"><span class="activos-punto" aria-hidden="true"></span>Mandrainos activos</span>
                 <strong class="activos-num" id="activos-num">–</strong>
             </div>
-            <img class="avatar" src="avatar.php?id=<?= (int) $_SESSION['user_id'] ?>" alt="Tu avatar" />
-            <span>Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong><?php if (Admin::esAdmin()): ?> <span class="badge-admin">ADMIN</span><?php endif; ?></span>
-            <?php if (Admin::esAdmin()): ?>
-            <button type="button" id="btn-duplicados" class="btn btn-register btn-small" title="Buscar y eliminar publicaciones duplicadas">🧹 Duplicados</button>
-            <?php endif; ?>
-            <a href="perfil.php" class="btn btn-register btn-small">Mi perfil</a>
-            <a href="logout.php" class="btn btn-register btn-small">Cerrar sesión</a>
+            <div class="dropdown notif-wrap" id="notif-wrap">
+                <button type="button" class="notif-btn" id="notif-btn" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false" title="Notificaciones">
+                    <span aria-hidden="true">🔔</span>
+                    <span class="notif-badge" id="notif-badge" hidden>0</span>
+                </button>
+                <div class="dropdown-panel notif-panel" id="notif-panel" role="menu" hidden>
+                    <div class="notif-head">
+                        <strong>Notificaciones</strong>
+                        <button type="button" class="btn-link" id="notif-leer-todas" hidden>Marcar todas como leídas</button>
+                    </div>
+                    <ul class="notif-list" id="notif-list"></ul>
+                    <p class="notif-empty" id="notif-empty" hidden>Todavía no tenés notificaciones. Cuando alguien responda a tus publicaciones, te avisamos acá.</p>
+                </div>
+            </div>
+            <div class="dropdown" id="user-menu">
+                <button type="button" class="user-menu-btn" id="user-menu-btn" aria-haspopup="true" aria-expanded="false">
+                    <img class="avatar" src="avatar.php?id=<?= (int) $_SESSION['user_id'] ?>" alt="Tu avatar" />
+                    <span class="user-menu-nombre">Hola, <strong><?= htmlspecialchars($_SESSION['nickname'] ?? '') ?></strong><?php if (Admin::esAdmin()): ?> <span class="badge-admin">ADMIN</span><?php endif; ?></span>
+                    <span class="user-menu-flecha" aria-hidden="true">▾</span>
+                </button>
+                <div class="dropdown-panel user-menu-panel" id="user-menu-panel" role="menu" hidden>
+                    <a href="perfil.php" class="dropdown-item" role="menuitem">👤 Mi perfil</a>
+                    <?php if (Admin::esAdmin()): ?>
+                    <button type="button" id="btn-duplicados" class="dropdown-item" role="menuitem" title="Buscar y eliminar publicaciones duplicadas">🧹 Duplicados</button>
+                    <?php endif; ?>
+                    <a href="logout.php" class="dropdown-item" role="menuitem">🚪 Cerrar sesión</a>
+                </div>
+            </div>
         </div>
     </header>
 
@@ -80,6 +101,7 @@ require_once __DIR__ . '/includes/Admin.php';
         const REACCIONES_URL = 'api/v1/reacciones.php';
         const DUPLICADAS_URL = 'api/v1/duplicadas.php';
         const NOVEDADES_URL = 'api/v1/novedades.php';
+        const NOTIF_URL = 'api/v1/notificaciones.php';
         const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
         const esAdmin = <?= Admin::esAdmin() ? 'true' : 'false' ?>;
@@ -890,6 +912,168 @@ require_once __DIR__ . '/includes/Admin.php';
             }
         });
 
+
+        // ---- Menús desplegables del header (usuario y notificaciones) ----
+        const dropdowns = [
+            { btn: document.getElementById('user-menu-btn'), panel: document.getElementById('user-menu-panel') },
+            { btn: document.getElementById('notif-btn'), panel: document.getElementById('notif-panel') },
+        ];
+
+        function cerrarDropdowns(salvo = null) {
+            dropdowns.forEach((d) => {
+                if (d === salvo) return;
+                d.panel.hidden = true;
+                d.btn.setAttribute('aria-expanded', 'false');
+            });
+        }
+
+        dropdowns.forEach((d) => {
+            d.btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const abrir = d.panel.hidden;
+                cerrarDropdowns(d);
+                d.panel.hidden = !abrir;
+                d.btn.setAttribute('aria-expanded', String(abrir));
+            });
+            d.panel.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (e.target.closest('.dropdown-item')) cerrarDropdowns();
+            });
+        });
+
+        // Clic afuera o Escape: se cierran.
+        document.addEventListener('click', () => cerrarDropdowns());
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cerrarDropdowns();
+        });
+
+        // ---- Notificaciones: alguien respondió a una publicación tuya ----
+        const notifBadge = document.getElementById('notif-badge');
+        const notifList = document.getElementById('notif-list');
+        const notifEmpty = document.getElementById('notif-empty');
+        const notifLeerTodas = document.getElementById('notif-leer-todas');
+        const tituloOriginal = document.title;
+        let notifItems = [];
+        let notifNoLeidas = 0;
+        let notifVistas = null; // ids ya conocidos: la primera carga no "avisa"
+        let seqNotif = 0;
+
+        function fechaRelativa(valor) {
+            const seg = Math.max(0, Math.round((Date.now() - new Date(valor).getTime()) / 1000));
+            if (seg < 60) return 'recién';
+            if (seg < 3600) return `hace ${Math.floor(seg / 60)} min`;
+            if (seg < 86400) return `hace ${Math.floor(seg / 3600)} h`;
+            return new Date(valor).toLocaleDateString();
+        }
+
+        function renderNotificaciones() {
+            notifBadge.hidden = notifNoLeidas === 0;
+            notifBadge.textContent = notifNoLeidas > 99 ? '99+' : String(notifNoLeidas);
+            notifLeerTodas.hidden = notifNoLeidas === 0;
+            notifEmpty.hidden = notifItems.length > 0;
+            document.title = notifNoLeidas > 0 ? `(${notifNoLeidas}) ${tituloOriginal}` : tituloOriginal;
+
+            notifList.innerHTML = notifItems.map((n) => `
+                <li>
+                    <button type="button" class="notif-item ${n.leida ? '' : 'no-leida'}" data-id="${Number(n.id)}" data-post="${Number(n.publicacion_id)}" data-resp="${Number(n.respuesta_id)}">
+                        <span class="notif-texto"><strong>${escapeHtml(n.actor_nickname)}</strong> respondió en <em>${escapeHtml(n.publicacion_titulo)}</em></span>
+                        <span class="notif-extracto">${escapeHtml(n.respuesta_extracto)}</span>
+                        <span class="notif-fecha">${fechaRelativa(n.fecha_creacion)}</span>
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        async function cargarNotificaciones() {
+            try {
+                const miSeq = ++seqNotif;
+                const res = await fetch(NOTIF_URL, { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (miSeq !== seqNotif) return; // llegó otra respuesta más nueva
+
+                const ids = new Set(data.items.map((n) => Number(n.id)));
+                const llegaron = notifVistas === null
+                    ? []
+                    : data.items.filter((n) => !n.leida && !notifVistas.has(Number(n.id)));
+                notifVistas = ids;
+
+                notifItems = data.items;
+                notifNoLeidas = Number(data.no_leidas) || 0;
+                renderNotificaciones();
+
+                if (llegaron.length > 0) {
+                    notifBadge.classList.remove('notif-pulso');
+                    void notifBadge.offsetWidth; // reinicia la animación
+                    notifBadge.classList.add('notif-pulso');
+                }
+            } catch (err) {
+                console.error('Error al cargar las notificaciones:', err);
+            }
+        }
+
+        async function marcarNotificaciones(id = null) {
+            try {
+                await fetch(NOTIF_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(id === null ? {} : { id }),
+                });
+            } catch (err) {
+                console.error('Error al marcar notificaciones:', err);
+            }
+        }
+
+        notifLeerTodas.addEventListener('click', async () => {
+            notifItems = notifItems.map((n) => ({ ...n, leida: true }));
+            notifNoLeidas = 0;
+            renderNotificaciones();
+            await marcarNotificaciones();
+        });
+
+        // Ir a la publicación: se limpia el filtro de tag si hace falta, se
+        // abre el hilo de respuestas y se resalta la respuesta nueva.
+        async function irAPublicacion(postId, respId) {
+            if (tagActivo !== null) {
+                seleccionarTag(null);
+                await cargarPublicaciones({ silencioso: true });
+            }
+
+            const card = feedEl.querySelector(`.post-card[data-id="${postId}"]`);
+            if (!card) {
+                alert('Esa publicación ya no está disponible.');
+                return;
+            }
+
+            const seccion = card.querySelector('.replies');
+            if (seccion.hidden) seccion.hidden = false;
+            await cargarRespuestas(card, { silencioso: true });
+
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const respuesta = card.querySelector(`.reply[data-id="${respId}"]`);
+            const objetivo = respuesta || card;
+            objetivo.classList.remove('post-nuevo');
+            void objetivo.offsetWidth;
+            objetivo.classList.add('post-nuevo');
+        }
+
+        notifList.addEventListener('click', async (e) => {
+            const item = e.target.closest('.notif-item');
+            if (!item) return;
+
+            const id = Number(item.dataset.id);
+            const n = notifItems.find((x) => Number(x.id) === id);
+            if (n && !n.leida) {
+                n.leida = true;
+                notifNoLeidas = Math.max(0, notifNoLeidas - 1);
+                renderNotificaciones();
+                marcarNotificaciones(id);
+            }
+
+            cerrarDropdowns();
+            await irAPublicacion(Number(item.dataset.post), Number(item.dataset.resp));
+        });
+
         // ---- Tiempo real ----
         // Cada POLL_MS se pregunta por la "versión" del contenido (una
         // consulta mínima a Redis). Solo si cambió se vuelve a pedir el feed y
@@ -932,7 +1116,7 @@ require_once __DIR__ . '/includes/Admin.php';
                     versionRT = version; // primera lectura: punto de partida
                 } else if (version !== versionRT) {
                     versionRT = version;
-                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags(), cargarTagsGenerales()]);
+                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags(), cargarTagsGenerales(), cargarNotificaciones()]);
                 }
             } catch (err) {
                 // Sin red o servidor caído: se reintenta en el próximo ciclo.
@@ -1039,6 +1223,7 @@ require_once __DIR__ . '/includes/Admin.php';
         cargarPublicaciones();
         cargarMisTags();
         cargarTagsGenerales();
+        cargarNotificaciones();
 
         setInterval(buscarNovedades, POLL_MS);
         document.addEventListener('visibilitychange', () => {

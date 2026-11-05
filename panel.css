@@ -744,3 +744,251 @@ html {
 .reply-body {
     white-space: pre-wrap;
 }
+
+/* -------------------
+   MENÚS DESPLEGABLES Y NOTIFICACIONES (header)
+------------------- */
+
+.panel-header {
+    position: relative;
+}
+
+.dropdown {
+    position: relative;
+}
+
+.dropdown-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    z-index: 60;
+    min-width: 200px;
+    background: #000;
+    border: 2px solid #ffd900;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.dropdown-panel[hidden] {
+    display: none;
+}
+
+.user-menu-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    padding: 0.2rem 0.7rem 0.2rem 0.25rem;
+}
+
+.user-menu-btn:hover,
+.user-menu-btn[aria-expanded="true"] {
+    border-color: #ffd900;
+}
+
+.user-menu-flecha {
+    color: #ffd900;
+    font-size: 0.8rem;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.2);
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    text-decoration: none;
+}
+
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus-visible {
+    background: rgba(255, 217, 0, 0.15);
+    color: #ffd900;
+    outline: none;
+}
+
+/* ---- Campanita ---- */
+.notif-btn {
+    position: relative;
+    background: none;
+    border: 2px solid #ffd900;
+    border-radius: 50%;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1.1rem;
+    height: 40px;
+    line-height: 1;
+    padding: 0;
+    width: 40px;
+}
+
+.notif-btn:hover,
+.notif-btn[aria-expanded="true"] {
+    background: rgba(255, 217, 0, 0.15);
+}
+
+.notif-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 18px;
+    height: 18px;
+    box-sizing: border-box;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #e53935;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+}
+
+.notif-badge[hidden] {
+    display: none;
+}
+
+.notif-pulso {
+    animation: notif-pop 0.6s ease-out;
+}
+
+@keyframes notif-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.6); }
+    100% { transform: scale(1); }
+}
+
+.notif-panel {
+    width: 340px;
+    max-width: calc(100vw - 1.5rem);
+}
+
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.35);
+    color: #ffd900;
+}
+
+.notif-head .btn-link {
+    font-size: 0.78rem;
+}
+
+.notif-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.notif-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    width: 100%;
+    box-sizing: border-box;
+    background: none;
+    border: none;
+    border-bottom: 1px solid rgba(255, 217, 0, 0.15);
+    color: #cfcfcf;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.7rem 1rem;
+    text-align: left;
+    overflow-wrap: anywhere;
+}
+
+.notif-item:hover,
+.notif-item:focus-visible {
+    background: rgba(255, 217, 0, 0.12);
+    outline: none;
+}
+
+.notif-item.no-leida {
+    background: rgba(255, 217, 0, 0.08);
+    border-left: 3px solid #ffd900;
+    color: #fff;
+}
+
+.notif-texto strong {
+    color: #ffd900;
+}
+
+.notif-extracto {
+    color: #9a9a9a;
+    font-size: 0.8rem;
+}
+
+.notif-fecha {
+    color: #8a8a8a;
+    font-size: 0.72rem;
+}
+
+.notif-empty {
+    margin: 0;
+    padding: 1rem;
+    color: #8a8a8a;
+    font-size: 0.85rem;
+}
+
+.notif-empty[hidden] {
+    display: none;
+}
+
+/* Un hilo o respuesta que se resalta al venir desde una notificación. */
+.reply.post-nuevo {
+    border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notif-pulso {
+        animation: none;
+    }
+}
+
+/* En pantallas angostas los paneles ocupan el ancho del encabezado. */
+@media (max-width: 600px) {
+    .dropdown {
+        position: static;
+    }
+
+    .dropdown-panel,
+    .notif-panel {
+        top: 100%;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+        margin-top: 0.3rem;
+    }
+
+    .user-menu-nombre {
+        max-width: 11rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

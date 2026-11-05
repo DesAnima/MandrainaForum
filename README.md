@@ -147,6 +147,28 @@ genérico si el usuario no subió nada. Si tu base ya corrió la
 migración 001 (que había sacado esa columna), corré también
 `migrations/002_recuperar_profile_pic.sql`.
 
+## Notificaciones
+
+Cuando alguien responde a una publicación tuya, te llega un aviso: aparece una
+campanita 🔔 en el encabezado con la cantidad de avisos sin leer (también en
+el título de la pestaña). Al abrirla se ven los últimos 20; al hacer clic en
+uno se abre la publicación con el hilo de respuestas y se resalta la respuesta
+nueva. "Marcar todas como leídas" las limpia de una vez.
+
+- Se guardan en la tabla `notificaciones` (se crea sola; ver
+  `migrations/007_notificaciones.sql`) desde `RespuestaController::store`.
+- No hay aviso si respondés en tu propia publicación.
+- Si el worker de moderación elimina la respuesta, el aviso desaparece con
+  ella (`ON DELETE CASCADE`).
+- El panel las recarga junto con el feed cuando el sondeo de novedades detecta
+  un cambio (ver "Actualización en vivo").
+
+## Menú del encabezado
+
+Mi perfil, Duplicados (solo admin) y Cerrar sesión están dentro de un menú
+desplegable al hacer clic en tu avatar y nombre. Se cierra con un clic afuera
+o con Escape.
+
 ## Contenido sensible
 
 `includes/FiltroContenido.php` detecta lenguaje vulgar (español e
@@ -252,6 +274,8 @@ repetidos. Un tag vulgar se rechaza con 400. En un `PUT`, si no se envía
 | GET    | `/api/v1/publicaciones?tag={tag}`     | Solo las publicaciones con ese tag (filtra sobre el feed cacheado) |
 | GET    | `/api/v1/tags.php`                    | Tags en los que participa el usuario (publicó o respondió), con el total de publicaciones de cada uno. Requiere sesión |
 | GET    | `/api/v1/tags.php?alcance=general`    | Tags más usados por todos los usuarios (top 15), con el total de publicaciones de cada uno. Requiere sesión |
+| GET    | `/api/v1/notificaciones.php`          | Avisos de respuestas a tus publicaciones: `{no_leidas, items}`. Requiere sesión |
+| POST   | `/api/v1/notificaciones.php`          | Marca avisos como leídos: sin body, todos; con `{"id": n}`, solo ese. Requiere sesión |
 
 Cada publicación del feed incluye `tags` (lista). La tabla `publicacion_tags`
 se crea sola (ver también `migrations/005_tags.sql`). Como cambió la forma de
