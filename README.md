@@ -60,6 +60,13 @@ actualizan en vivo. Las animaciones (mandarinas que suben, tomate que se
 estrella contra la tarjeta) las ve solo quien hace clic, se eliminan al
 terminar y se omiten con `prefers-reduced-motion`.
 
+## Saltos de línea
+
+El cuadro de contenido acepta Enter para bajar de renglón y las publicaciones
+(y respuestas) lo muestran igual (`white-space: pre-wrap`). El servidor
+(`includes/Texto.php`) conserva los saltos de línea, con un máximo de una
+línea en blanco seguida entre párrafos; el título es siempre de una línea.
+
 ## Registro anónimo por QR
 
 No hay formulario de contraseña en el registro: el usuario solo elige un

@@ -36,7 +36,7 @@ require_once __DIR__ . '/includes/Admin.php';
                 <input type="hidden" id="post-id" value="" />
                 <input type="text" id="titulo" class="input-box" placeholder="Título" maxlength="100" required />
                 <small class="char-count" id="titulo-count">0 / 100</small>
-                <textarea id="contenido" class="input-box" placeholder="¿Qué querés contar?" rows="3" maxlength="2000" required></textarea>
+                <textarea id="contenido" class="input-box" placeholder="¿Qué querés contar?" rows="6" maxlength="2000" required></textarea>
                 <small class="char-count" id="contenido-count">0 / 2000</small>
                 <input type="text" id="tags" class="input-box" placeholder="Tags (ej: musica, juegos)" maxlength="120" />
                 <small class="form-hint">Hasta 5 tags separados por coma o espacio.</small>
@@ -551,7 +551,7 @@ require_once __DIR__ . '/includes/Admin.php';
                     ` : ''}
                     ${(esPropia || esAdmin) ? `
                         <div class="post-card-actions">
-                            ${esPropia ? `<button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido)}" data-tags="${escapeHtml((post.tags || []).join(' '))}">Editar</button>` : ''}
+                            ${esPropia ? `<button class="btn-link edit-btn" data-id="${post.id}" data-titulo="${escapeHtml(post.titulo)}" data-contenido="${escapeHtml(post.contenido).replace(/\n/g, '&#10;')}" data-tags="${escapeHtml((post.tags || []).join(' '))}">Editar</button>` : ''}
                             <button class="btn-link delete-btn" data-id="${post.id}" data-autor="${escapeHtml(post.nickname)}" data-ajena="${esPropia ? '0' : '1'}">Eliminar</button>
                         </div>
                     ` : ''}

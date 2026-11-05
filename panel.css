@@ -630,3 +630,10 @@ html {
     background: #ffd900;
     color: #000;
 }
+
+/* Los saltos de línea que escribió el usuario (Enter) se muestran tal cual,
+   en publicaciones y respuestas. El título sigue siendo de una sola línea. */
+.post-body p,
+.reply-body {
+    white-space: pre-wrap;
+}
