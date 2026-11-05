@@ -397,11 +397,11 @@ require_once __DIR__ . '/includes/Admin.php';
             }
         }
 
-        // ---- Textura de tomate ----
-        // Cuantos más tomates recibe una publicación, más se "ensucia" su
-        // bloque de texto (manchas, goteo, semillas y piel granulada; ver
-        // .tomate-N en panel.css). La posición de las manchas sale del id,
-        // así cada publicación tiene las suyas y no cambian entre cargas.
+        // ---- Manchas de tomate ----
+        // Cuantos más tomates (dislikes) recibe una publicación, más manchas
+        // aparecen sobre su bloque de texto (ver .tomate-N en panel.css). Las
+        // mandarinas no influyen. La posición de las manchas sale del id, así
+        // cada publicación tiene las suyas y no cambian entre cargas.
         function nivelTomate(n) {
             n = Number(n) || 0;
             if (n >= 12) return 5;
@@ -416,7 +416,9 @@ require_once __DIR__ . '/includes/Admin.php';
             const v = [];
             for (let i = 1; i <= 12; i++) {
                 const azar = ((Number(id) * 9301 + i * 49297) % 233280) / 233280;
-                v.push(`--${i <= 6 ? 'x' + i : 'y' + (i - 6)}:${Math.round(azar * 100)}%`);
+                // x entre 8% y 92%, y entre 25% y 75%: las manchas quedan dentro del bloque.
+                const pos = i <= 6 ? 8 + azar * 84 : 25 + azar * 50;
+                v.push(`--${i <= 6 ? 'x' + i : 'y' + (i - 6)}:${Math.round(pos)}%`);
             }
             return v.join(';');
         }

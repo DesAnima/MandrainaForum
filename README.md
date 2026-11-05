@@ -60,15 +60,15 @@ actualizan en vivo. Las animaciones (mandarinas que suben, tomate que se
 estrella contra la tarjeta) las ve solo quien hace clic, se eliminan al
 terminar y se omiten con `prefers-reduced-motion`.
 
-### Textura de tomate
+### Manchas de tomate
 
-Cuantos más tomates recibe una publicación, más se ensucia su bloque de texto
-(manchas con goteo, semillas y una piel granulada). Hay cinco niveles según
-los tomates: 1-2, 3-4, 5-7, 8-11 y 12 o más. Se aplica con las clases
-`.tomate-1` a `.tomate-5` sobre `.post-body` (ver `panel.css`), cambia en el
-momento al reaccionar y la posición de las manchas sale del id de la
-publicación, así que cada una tiene las suyas. Es solo visual: el texto no se
-oculta ni se modifica.
+Cuantos más tomates recibe una publicación, más manchas de tomate aparecen
+sobre su bloque de texto. Solo cuentan los tomates: las mandarinas no cambian
+nada. Hay cinco niveles según los tomates: 1-2, 3-4, 5-7, 8-11 y 12 o más. Se
+aplica con las clases `.tomate-1` a `.tomate-5` sobre `.post-body` (ver
+`panel.css`), cambia en el momento al reaccionar y la posición de las manchas
+sale del id de la publicación, así que cada una tiene las suyas. Es solo
+visual: el texto no se oculta ni se modifica.
 
 ## Saltos de línea
 

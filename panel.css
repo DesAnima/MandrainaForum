@@ -994,16 +994,15 @@ html {
 }
 
 /* -------------------
-   TEXTURA DE TOMATE
-   Cuantos más tomates (dislikes) recibe una publicación, más se ensucia su
-   bloque de texto. panel.php agrega .tomate-1 ... .tomate-5 a .post-body
-   (1-2, 3-4, 5-7, 8-11 y 12 o más tomates) y las posiciones de las manchas
-   (--x1..--x6, --y1..--y6) salen del id de la publicación.
+   MANCHAS DE TOMATE
+   Cuantos más tomates (dislikes) recibe una publicación, más manchas de
+   tomate aparecen sobre su bloque de texto. Solo cuentan los tomates: las
+   mandarinas no cambian nada. panel.php agrega .tomate-1 ... .tomate-5 a
+   .post-body (1-2, 3-4, 5-7, 8-11 y 12 o más tomates) y la posición de las
+   manchas (--x1..--x6, --y1..--y6) sale del id de la publicación.
 ------------------- */
 
 .post-body {
-    --tint: 0;
-    --grain: 0;
     --k: 1;
     --s1: 0; --s2: 0; --s3: 0; --s4: 0; --s5: 0; --s6: 0;
 }
@@ -1012,10 +1011,8 @@ html {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    margin: 0.2rem 0;
-    padding: 0.7rem 0.9rem;
-    border-radius: 10px;
-    border: 1px solid rgb(200 40 30 / calc(var(--tint) * 2.5));
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
 }
 
 .post-body[class*="tomate-"] > * {
@@ -1023,61 +1020,56 @@ html {
     z-index: 1;
 }
 
-/* Manchas, goteo y semillas */
 .post-body[class*="tomate-"]::before {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    animation: tomate-aparece 0.6s ease-out;
+    animation: tomate-aparece 0.5s ease-out;
     background-image:
-        /* semillas */
-        radial-gradient(circle 3px at calc(var(--x2) + 9%) calc(var(--y2) - 7%), rgb(255 226 130 / calc(var(--s2) * 0.9)) 0 70%, transparent 100%),
-        radial-gradient(circle 2.5px at calc(var(--x4) - 8%) calc(var(--y4) + 6%), rgb(255 226 130 / calc(var(--s4) * 0.9)) 0 70%, transparent 100%),
-        radial-gradient(circle 3px at calc(var(--x6) + 7%) calc(var(--y6) - 9%), rgb(255 226 130 / calc(var(--s6) * 0.9)) 0 70%, transparent 100%),
-        /* goteo */
-        radial-gradient(ellipse calc(4px * var(--k)) calc(34px * var(--k)) at var(--x1) calc(var(--y1) + 20%), rgb(185 20 18 / calc(var(--s1) * 0.7)) 0 60%, transparent 100%),
-        radial-gradient(ellipse calc(3px * var(--k)) calc(28px * var(--k)) at var(--x3) calc(var(--y3) + 22%), rgb(185 20 18 / calc(var(--s3) * 0.7)) 0 60%, transparent 100%),
-        radial-gradient(ellipse calc(4px * var(--k)) calc(30px * var(--k)) at var(--x5) calc(var(--y5) + 20%), rgb(185 20 18 / calc(var(--s5) * 0.7)) 0 60%, transparent 100%),
-        /* brillo de la pulpa */
-        radial-gradient(ellipse calc(16px * var(--k)) calc(10px * var(--k)) at calc(var(--x1) - 4%) calc(var(--y1) - 5%), rgb(255 130 100 / calc(var(--s1) * 0.55)) 0 50%, transparent 100%),
-        radial-gradient(ellipse calc(14px * var(--k)) calc(9px * var(--k)) at calc(var(--x3) - 4%) calc(var(--y3) - 5%), rgb(255 130 100 / calc(var(--s3) * 0.55)) 0 50%, transparent 100%),
-        /* manchas */
-        radial-gradient(ellipse calc(38px * var(--k)) calc(26px * var(--k)) at var(--x1) var(--y1), rgb(185 20 18 / calc(var(--s1) * 0.78)) 0 55%, rgb(185 20 18 / 0) 76%),
-        radial-gradient(ellipse calc(30px * var(--k)) calc(22px * var(--k)) at var(--x2) var(--y2), rgb(170 18 16 / calc(var(--s2) * 0.78)) 0 55%, rgb(170 18 16 / 0) 76%),
-        radial-gradient(ellipse calc(34px * var(--k)) calc(24px * var(--k)) at var(--x3) var(--y3), rgb(195 25 20 / calc(var(--s3) * 0.78)) 0 55%, rgb(195 25 20 / 0) 76%),
-        radial-gradient(ellipse calc(26px * var(--k)) calc(20px * var(--k)) at var(--x4) var(--y4), rgb(175 20 16 / calc(var(--s4) * 0.78)) 0 55%, rgb(175 20 16 / 0) 76%),
-        radial-gradient(ellipse calc(32px * var(--k)) calc(22px * var(--k)) at var(--x5) var(--y5), rgb(190 22 18 / calc(var(--s5) * 0.78)) 0 55%, rgb(190 22 18 / 0) 76%),
-        radial-gradient(ellipse calc(36px * var(--k)) calc(25px * var(--k)) at var(--x6) var(--y6), rgb(165 16 14 / calc(var(--s6) * 0.78)) 0 55%, rgb(165 16 14 / 0) 76%),
-        /* tinte general rojizo */
-        linear-gradient(rgb(200 30 20 / var(--tint)), rgb(210 50 30 / var(--tint)));
+        /* mancha 1 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x1) + 10%) calc(var(--y1) - 14%), rgb(222 42 32 / calc(var(--s1) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x1) - 9%) calc(var(--y1) + 16%), rgb(222 42 32 / calc(var(--s1) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(19px * var(--k)) calc(17px * var(--k)) at calc(var(--x1) + 4%) calc(var(--y1) + 7%), rgb(222 42 32 / calc(var(--s1) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(34px * var(--k)) calc(24px * var(--k)) at var(--x1) var(--y1), rgb(222 42 32 / calc(var(--s1) * 0.72)) 0 66%, rgb(222 42 32 / 0) 78%),
+        /* mancha 2 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x2) + 10%) calc(var(--y2) - 14%), rgb(205 34 26 / calc(var(--s2) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x2) - 9%) calc(var(--y2) + 16%), rgb(205 34 26 / calc(var(--s2) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(15px * var(--k)) calc(14px * var(--k)) at calc(var(--x2) + 4%) calc(var(--y2) + 7%), rgb(205 34 26 / calc(var(--s2) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(28px * var(--k)) calc(20px * var(--k)) at var(--x2) var(--y2), rgb(205 34 26 / calc(var(--s2) * 0.72)) 0 66%, rgb(205 34 26 / 0) 78%),
+        /* mancha 3 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x3) + 10%) calc(var(--y3) - 14%), rgb(230 48 36 / calc(var(--s3) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x3) - 9%) calc(var(--y3) + 16%), rgb(230 48 36 / calc(var(--s3) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(18px * var(--k)) calc(16px * var(--k)) at calc(var(--x3) + 4%) calc(var(--y3) + 7%), rgb(230 48 36 / calc(var(--s3) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(32px * var(--k)) calc(23px * var(--k)) at var(--x3) var(--y3), rgb(230 48 36 / calc(var(--s3) * 0.72)) 0 66%, rgb(230 48 36 / 0) 78%),
+        /* mancha 4 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x4) + 10%) calc(var(--y4) - 14%), rgb(212 38 28 / calc(var(--s4) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x4) - 9%) calc(var(--y4) + 16%), rgb(212 38 28 / calc(var(--s4) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(14px * var(--k)) calc(13px * var(--k)) at calc(var(--x4) + 4%) calc(var(--y4) + 7%), rgb(212 38 28 / calc(var(--s4) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(26px * var(--k)) calc(19px * var(--k)) at var(--x4) var(--y4), rgb(212 38 28 / calc(var(--s4) * 0.72)) 0 66%, rgb(212 38 28 / 0) 78%),
+        /* mancha 5 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x5) + 10%) calc(var(--y5) - 14%), rgb(226 44 34 / calc(var(--s5) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x5) - 9%) calc(var(--y5) + 16%), rgb(226 44 34 / calc(var(--s5) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(16px * var(--k)) calc(15px * var(--k)) at calc(var(--x5) + 4%) calc(var(--y5) + 7%), rgb(226 44 34 / calc(var(--s5) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(30px * var(--k)) calc(22px * var(--k)) at var(--x5) var(--y5), rgb(226 44 34 / calc(var(--s5) * 0.72)) 0 66%, rgb(226 44 34 / 0) 78%),
+        /* mancha 6 */
+        radial-gradient(circle calc(5px * var(--k)) at calc(var(--x6) + 10%) calc(var(--y6) - 14%), rgb(200 32 24 / calc(var(--s6) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(circle calc(3.5px * var(--k)) at calc(var(--x6) - 9%) calc(var(--y6) + 16%), rgb(200 32 24 / calc(var(--s6) * 0.75)) 0 70%, transparent 100%),
+        radial-gradient(ellipse calc(19px * var(--k)) calc(17px * var(--k)) at calc(var(--x6) + 4%) calc(var(--y6) + 7%), rgb(200 32 24 / calc(var(--s6) * 0.7)) 0 60%, transparent 100%),
+        radial-gradient(ellipse calc(34px * var(--k)) calc(24px * var(--k)) at var(--x6) var(--y6), rgb(200 32 24 / calc(var(--s6) * 0.72)) 0 66%, rgb(200 32 24 / 0) 78%);
 }
 
-/* Piel y pulpa granulada (ruido) */
-.post-body[class*="tomate-"]::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    opacity: var(--grain);
-    mix-blend-mode: screen;
-    background-size: 160px 160px;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='1.6 0 0 0 .1  0 .25 0 0 0  0 0 .12 0 0  0 0 0 .9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-}
+.post-body.tomate-1 { --k: 0.8;  --s1: 1; }
+.post-body.tomate-2 { --k: 0.9;  --s1: 1; --s2: 1; }
+.post-body.tomate-3 { --k: 1;    --s1: 1; --s2: 1; --s3: 1; }
+.post-body.tomate-4 { --k: 1.15; --s1: 1; --s2: 1; --s3: 1; --s4: 1; --s5: 1; }
+.post-body.tomate-5 { --k: 1.3;  --s1: 1; --s2: 1; --s3: 1; --s4: 1; --s5: 1; --s6: 1; }
 
-.post-body.tomate-1 { --tint: 0.06; --grain: 0;    --k: 0.8;  --s1: 1; }
-.post-body.tomate-2 { --tint: 0.10; --grain: 0.18; --k: 0.9;  --s1: 1; --s2: 1; }
-.post-body.tomate-3 { --tint: 0.15; --grain: 0.30; --k: 1;    --s1: 1; --s2: 1; --s3: 1; }
-.post-body.tomate-4 { --tint: 0.22; --grain: 0.42; --k: 1.15; --s1: 1; --s2: 1; --s3: 1; --s4: 1; --s5: 1; }
-.post-body.tomate-5 { --tint: 0.30; --grain: 0.55; --k: 1.3;  --s1: 1; --s2: 1; --s3: 1; --s4: 1; --s5: 1; --s6: 1; }
-
-/* Con mucha mancha, el texto se refuerza para seguir leyéndose. */
-.post-body.tomate-3 > *,
+/* Con muchas manchas, el texto se refuerza un poco para seguir leyéndose. */
 .post-body.tomate-4 > *,
 .post-body.tomate-5 > * {
-    text-shadow: 0 1px 2px #000, 0 0 6px rgb(0 0 0 / 0.85);
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.9);
 }
 
 @keyframes tomate-aparece {
