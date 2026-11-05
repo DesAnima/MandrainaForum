@@ -40,6 +40,24 @@ class ReaccionController
         $this->jsonResponse(200, ['reacciones' => (object) $this->model()->deUsuario($userId)]);
     }
 
+    // DELETE ?publicacion_id=ID: el usuario se arrepiente y no deja ninguna reacción.
+    public function destroy(int $publicacionId): void
+    {
+        $userId = $this->requireAuth();
+
+        if ($publicacionId <= 0) {
+            $this->jsonResponse(400, ['error' => 'Falta el parámetro "publicacion_id" en la URL.']);
+        }
+
+        if (!$this->model()->quitar($publicacionId, $userId)) {
+            $this->jsonResponse(404, ['error' => 'No tenés ninguna reacción en esta publicación.']);
+        }
+
+        Feed::invalidar();
+        http_response_code(204);
+        exit;
+    }
+
     // POST {publicacion_id, tipo: "like"|"dislike"}
     public function store(array $body): void
     {

@@ -600,3 +600,33 @@ html {
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
     will-change: transform, opacity;
 }
+
+/* ---- Botón flotante para volver al tope de la página ---- */
+.btn-subir {
+    position: fixed;
+    right: 1rem;
+    bottom: 1.25rem;
+    z-index: 900;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    border: 2px solid #ffd900;
+    background: rgba(0, 0, 0, 0.85);
+    color: #ffd900;
+    font-size: 1.4rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.btn-subir[hidden] {
+    display: none;
+}
+
+.btn-subir:hover {
+    transform: translateY(-2px);
+    background: #ffd900;
+    color: #000;
+}

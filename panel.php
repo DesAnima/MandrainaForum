@@ -58,6 +58,8 @@ require_once __DIR__ . '/includes/Admin.php';
     </main>
     </div>
 
+    <button type="button" id="btn-subir" class="btn-subir" aria-label="Volver arriba" title="Volver arriba" hidden>↑</button>
+
     <script>
         const API_URL = 'api/v1/publicaciones';
         const RESPUESTAS_URL = 'api/v1/respuestas.php';
@@ -327,14 +329,14 @@ require_once __DIR__ . '/includes/Admin.php';
         // publicación, definitiva, y ninguna sobre la publicación propia.
         function renderReacciones(post, esPropia) {
             const mia = misReacciones[post.id] || null;
-            // La reacción activa queda marcada y sin clic; el botón contrario
-            // sigue habilitado para cambiarla. Sobre la publicación propia no hay reacción.
+            // La reacción activa queda marcada: tocarla de nuevo la quita, y tocar
+            // la otra la cambia. Sobre la publicación propia no se puede reaccionar.
             const boton = (tipo, emoji, nombre, cantidad) => {
                 const activa = mia === tipo;
-                const bloqueado = esPropia || activa;
+                const bloqueado = esPropia;
                 const titulo = esPropia
                     ? 'No podés reaccionar a tu propia publicación'
-                    : (activa ? 'Tu reacción actual' : (mia !== null ? `Cambiar a ${nombre}` : nombre));
+                    : (activa ? 'Quitar mi reacción' : (mia !== null ? `Cambiar a ${nombre}` : nombre));
                 return `
                 <button type="button" class="react-btn react-${tipo} ${activa ? 'is-active' : ''}"
                         data-tipo="${tipo}" data-id="${post.id}" ${bloqueado ? 'disabled' : ''}
@@ -460,8 +462,9 @@ require_once __DIR__ . '/includes/Admin.php';
         }
 
         // La animación y el cambio de contadores arrancan en el clic, sin
-        // esperar al servidor (que puede tardar). Si el servidor rechaza la
-        // reacción, se deshace todo y se avisa.
+        // esperar al servidor (que puede tardar). Tocar la reacción activa la
+        // quita; tocar la otra la cambia. Si el servidor rechaza el cambio, se
+        // deshace todo y se avisa.
         async function reaccionar(btn) {
             const card = btn.closest('.post-card');
             const barra = card.querySelector('.post-reactions');
@@ -472,27 +475,30 @@ require_once __DIR__ . '/includes/Admin.php';
 
             const htmlPrevio = barra.innerHTML;
             const reaccionPrevia = misReacciones[id] || null;
+            const quitar = reaccionPrevia === tipo; // volvió a tocar la suya: se arrepiente
 
             // --- Cambio inmediato en pantalla ---
             const contador = (t) => card.querySelector(`.react-${t} .react-count`);
             if (reaccionPrevia) contador(reaccionPrevia).textContent = Math.max(0, Number(contador(reaccionPrevia).textContent) - 1);
-            contador(tipo).textContent = Number(contador(tipo).textContent) + 1;
+            if (!quitar) contador(tipo).textContent = Number(contador(tipo).textContent) + 1;
             card.querySelectorAll('.react-btn').forEach((b) => {
-                b.classList.toggle('is-active', b.dataset.tipo === tipo);
+                b.classList.toggle('is-active', !quitar && b.dataset.tipo === tipo);
                 b.disabled = true; // sin doble clic mientras responde el servidor
             });
-            misReacciones[id] = tipo;
-            animarReaccion(tipo, origen, card);
+            if (quitar) delete misReacciones[id]; else misReacciones[id] = tipo;
+            if (!quitar) animarReaccion(tipo, origen, card); // quitar no se anima
 
             // --- Confirmación del servidor ---
             let error = null;
             try {
-                const res = await fetch(REACCIONES_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ publicacion_id: id, tipo }),
-                });
-                if (res.status !== 201) {
+                const res = quitar
+                    ? await fetch(`${REACCIONES_URL}?publicacion_id=${id}`, { method: 'DELETE' })
+                    : await fetch(REACCIONES_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ publicacion_id: id, tipo }),
+                    });
+                if (res.status !== (quitar ? 204 : 201)) {
                     const data = await res.json().catch(() => ({}));
                     error = data.error || 'No se pudo registrar la reacción.';
                 }
@@ -501,14 +507,13 @@ require_once __DIR__ . '/includes/Admin.php';
                 error = 'Error de red al reaccionar.';
             }
 
+            const viva = tarjetaViva(id);
             if (error !== null) {
                 if (reaccionPrevia) misReacciones[id] = reaccionPrevia; else delete misReacciones[id];
-                const viva = tarjetaViva(id);
                 if (viva) viva.querySelector('.post-reactions').innerHTML = htmlPrevio;
                 alert(error);
-            } else {
-                const viva = tarjetaViva(id);
-                if (viva) viva.querySelectorAll('.react-btn').forEach((b) => { b.disabled = b.dataset.tipo === tipo; });
+            } else if (viva) {
+                viva.querySelectorAll('.react-btn').forEach((b) => { b.disabled = false; });
             }
 
             // Se sincronizan los contadores reales con el servidor.
@@ -860,6 +865,18 @@ require_once __DIR__ . '/includes/Admin.php';
         }
 
         renderTagsBar();
+
+        // ---- Botón "volver arriba": aparece al bajar y lleva al tope ----
+        const btnSubir = document.getElementById('btn-subir');
+        const UMBRAL_SUBIR = 400; // px de scroll a partir de los cuales aparece
+        function actualizarBtnSubir() {
+            btnSubir.hidden = window.scrollY < UMBRAL_SUBIR;
+        }
+        window.addEventListener('scroll', actualizarBtnSubir, { passive: true });
+        btnSubir.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: sinMovimiento() ? 'auto' : 'smooth' });
+        });
+        actualizarBtnSubir();
 
         // La versión se lee ANTES (en paralelo) de cargar el feed: si algo cambia
         // mientras carga, el primer sondeo lo detecta.

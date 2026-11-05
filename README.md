@@ -46,8 +46,9 @@ Cada publicación tiene dos botones: 🍊 **mandarina** (like) y 🍅 **tomate**
 
 - No se puede reaccionar a la publicación propia (403).
 - Un usuario tiene una sola reacción por publicación: nunca las dos a la
-  vez. Puede cambiarla de mandarina a tomate (o al revés); repetir la misma
-  devuelve 409.
+  vez. Puede cambiarla de mandarina a tomate (o al revés) o quitarla tocando
+  de nuevo la que eligió (`DELETE /api/v1/reacciones.php?publicacion_id=ID`,
+  204). Repetir la misma por POST devuelve 409.
 - Solo aplica a publicaciones, no a respuestas.
 
 `GET /api/v1/reacciones.php` devuelve las reacciones del usuario (va aparte del

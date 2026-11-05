@@ -4,7 +4,7 @@
 //
 // La clave primaria (publicacion_id, user_id) garantiza a nivel de base de
 // datos que cada usuario tiene UNA sola reacción por publicación: like o
-// dislike, nunca las dos a la vez. Puede cambiarla de una a otra.
+// dislike, nunca las dos a la vez. Puede cambiarla de una a otra o quitarla.
 
 require_once __DIR__ . '/../config/db.php';
 
@@ -86,6 +86,14 @@ class Reaccion
                 WHERE reacciones.tipo <> EXCLUDED.tipo
         ");
         $stmt->execute([':pid' => $publicacionId, ':uid' => $userId, ':tipo' => $tipo]);
+        return $stmt->rowCount() > 0;
+    }
+
+    /** Quita la reacción del usuario. Devuelve false si no tenía ninguna. */
+    public function quitar(int $publicacionId, int $userId): bool
+    {
+        $stmt = $this->pdo->prepare("DELETE FROM reacciones WHERE publicacion_id = :pid AND user_id = :uid");
+        $stmt->execute([':pid' => $publicacionId, ':uid' => $userId]);
         return $stmt->rowCount() > 0;
     }
 
