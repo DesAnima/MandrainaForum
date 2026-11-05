@@ -40,7 +40,7 @@ $version = TiempoReal::version();
 
 if ($version === null) {
     // Sin Redis: huella calculada desde PostgreSQL. Cambia si se crea,
-    // edita o borra una publicación o una respuesta.
+    // edita o borra una publicación o una respuesta, o si alguien reacciona.
     require_once __DIR__ . '/../../models/Publicacion.php';
     new Publicacion(); // asegura que existan las tablas
     $fila = getPDO()->query("
@@ -49,7 +49,8 @@ if ($version === null) {
             (SELECT COALESCE(MAX(id), 0) FROM publicaciones),
             (SELECT COALESCE(MAX(fecha_actualizacion)::text, '') FROM publicaciones),
             (SELECT COUNT(*) FROM respuestas),
-            (SELECT COALESCE(MAX(id), 0) FROM respuestas)
+            (SELECT COALESCE(MAX(id), 0) FROM respuestas),
+            (SELECT COUNT(*) FROM reacciones)
     ")->fetch(PDO::FETCH_NUM);
 
     $version = 'db-' . md5(implode('|', $fila));

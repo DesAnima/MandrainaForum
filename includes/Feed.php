@@ -10,7 +10,7 @@ require_once __DIR__ . '/TiempoReal.php';
 
 class Feed
 {
-    public const CLAVE = 'feed:v2';
+    public const CLAVE = 'feed:v3'; // v3: suma likes/dislikes
     public const TTL = 60; // segundos; red de seguridad por si falla la invalidación
 
     /** Agrega "contenido_sensible" (true/false) a una publicación. */

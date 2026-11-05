@@ -62,6 +62,7 @@ require_once __DIR__ . '/includes/Admin.php';
         const API_URL = 'api/v1/publicaciones';
         const RESPUESTAS_URL = 'api/v1/respuestas.php';
         const TAGS_URL = 'api/v1/tags.php';
+        const REACCIONES_URL = 'api/v1/reacciones.php';
         const NOVEDADES_URL = 'api/v1/novedades.php';
         const POLL_MS = 3000; // cada cuánto se pregunta si hay novedades
         const currentUserId = <?= (int) $_SESSION['user_id'] ?>;
@@ -159,6 +160,7 @@ require_once __DIR__ . '/includes/Admin.php';
         // contenido sensible que ya revelaste.
 
         const firmasPosts = new Map(); // id -> "firma" de lo último que se dibujó
+        let misReacciones = {};        // id de publicación -> 'like' | 'dislike' (solo las mías)
         let primeraCarga = true;       // la primera carga no resalta tarjetas como nuevas
         let seqFeed = 0;
 
@@ -175,6 +177,7 @@ require_once __DIR__ . '/includes/Admin.php';
                 p.nickname, p.titulo, p.contenido, p.tags || [],
                 p.contenido_sensible === true, Number(p.total_respuestas) || 0,
                 p.fecha_actualizacion,
+                Number(p.likes) || 0, Number(p.dislikes) || 0, misReacciones[p.id] || null,
             ]);
         }
 
@@ -284,10 +287,19 @@ require_once __DIR__ . '/includes/Admin.php';
 
             try {
                 const url = tagActivo === null ? API_URL : `${API_URL}?tag=${encodeURIComponent(tagActivo)}`;
-                const res = await fetch(url, { cache: 'no-store' });
+                // Mis reacciones van aparte: el feed es igual para todos (caché en Redis).
+                const [res, resReacc] = await Promise.all([
+                    fetch(url, { cache: 'no-store' }),
+                    fetch(REACCIONES_URL, { cache: 'no-store' }).catch(() => null),
+                ]);
                 const data = await res.json();
+                let reaccionesNuevas = null;
+                if (resReacc && resReacc.ok) {
+                    try { reaccionesNuevas = (await resReacc.json()).reacciones || {}; } catch (_) {}
+                }
 
                 if (miSeq !== seqFeed) return; // llegó otra respuesta más nueva
+                if (reaccionesNuevas !== null) misReacciones = reaccionesNuevas;
 
                 if (!res.ok) {
                     if (!silencioso && !hayTarjetas()) {
@@ -309,6 +321,141 @@ require_once __DIR__ . '/includes/Admin.php';
                 console.error('Error al cargar publicaciones:', err);
                 if (!silencioso && !hayTarjetas()) mostrarEstado('Error de red al cargar publicaciones.');
             }
+        }
+
+        // Mandarina = like, tomate = dislike. Una sola reacción por usuario y
+        // publicación, definitiva, y ninguna sobre la publicación propia.
+        function renderReacciones(post, esPropia) {
+            const mia = misReacciones[post.id] || null;
+            const bloqueada = esPropia || mia !== null;
+            const motivo = esPropia
+                ? 'No podés reaccionar a tu propia publicación'
+                : (mia !== null ? 'Ya reaccionaste a esta publicación' : '');
+            const boton = (tipo, emoji, nombre, cantidad) => `
+                <button type="button" class="react-btn react-${tipo} ${mia === tipo ? 'is-active' : ''}"
+                        data-tipo="${tipo}" data-id="${post.id}" ${bloqueada ? 'disabled' : ''}
+                        title="${motivo || nombre}" aria-label="${nombre}: ${cantidad}">
+                    <span class="react-emoji" aria-hidden="true">${emoji}</span>
+                    <span class="react-count">${cantidad}</span>
+                </button>`;
+
+            return `
+                <div class="post-reactions">
+                    ${boton('like', '🍊', 'Mandarina (me gusta)', Number(post.likes) || 0)}
+                    ${boton('dislike', '🍅', 'Tomate (no me gusta)', Number(post.dislikes) || 0)}
+                </div>`;
+        }
+
+        // ---- Animaciones de reacción ----
+        // Los elementos animados viven en <body> (position: fixed), no dentro
+        // de la tarjeta: así la actualización en vivo, que rehace la tarjeta
+        // cuando cambian los contadores, no los corta. Cada uno se crea, se
+        // anima y se elimina al terminar.
+        function crearFx(emoji, x, y, clase = '') {
+            const el = document.createElement('span');
+            el.className = `fx-emoji ${clase}`.trim();
+            el.textContent = emoji;
+            el.setAttribute('aria-hidden', 'true');
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
+            document.body.appendChild(el);
+            return el;
+        }
+
+        function animarMandarina(origen) {
+            // Tres mandarinas que suben girando y se desvanecen.
+            [-28, 0, 28].forEach((desvio, i) => {
+                const el = crearFx('🍊', origen.x, origen.y);
+                const anim = el.animate([
+                    { transform: 'translate(-50%, -50%) scale(0.4) rotate(0deg)', opacity: 0 },
+                    { transform: `translate(calc(-50% + ${desvio * 0.5}px), calc(-50% - 40px)) scale(1.4) rotate(${desvio * 4}deg)`, opacity: 1, offset: 0.25 },
+                    { transform: `translate(calc(-50% + ${desvio}px), calc(-50% - 120px)) scale(1.1) rotate(${desvio * 8}deg)`, opacity: 0 },
+                ], { duration: 1200, delay: i * 110, easing: 'ease-out', fill: 'both' });
+                anim.onfinish = () => el.remove();
+            });
+        }
+
+        function animarTomate(origen, destino, card) {
+            const dx = destino.x - origen.x;
+            const dy = destino.y - origen.y;
+            const tomate = crearFx('🍅', origen.x, origen.y);
+
+            const vuelo = tomate.animate([
+                { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)' },
+                { transform: `translate(calc(-50% + ${dx * 0.5}px), calc(-50% + ${dy * 0.5 - 90}px)) rotate(360deg) scale(1.5)`, offset: 0.5 },
+                { transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(720deg) scale(1.2)` },
+            ], { duration: 650, easing: 'ease-in', fill: 'forwards' });
+
+            vuelo.onfinish = () => {
+                tomate.remove();
+
+                // Impacto: la mancha crece y se desvanece.
+                const mancha = document.createElement('div');
+                mancha.className = 'fx-splat';
+                mancha.style.left = `${destino.x}px`;
+                mancha.style.top = `${destino.y}px`;
+                document.body.appendChild(mancha);
+                const splat = mancha.animate([
+                    { transform: 'translate(-50%, -50%) scale(0.2)', opacity: 1 },
+                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 0.95, offset: 0.25 },
+                    { transform: 'translate(-50%, -48%) scale(1.05)', opacity: 0.85, offset: 0.7 },
+                    { transform: 'translate(-50%, -30%) scale(1.1)', opacity: 0 },
+                ], { duration: 1400, easing: 'ease-out', fill: 'both' });
+                splat.onfinish = () => mancha.remove();
+
+                // Sacudón de la tarjeta (si sigue en pantalla).
+                const viva = document.querySelector(`.post-card[data-id="${card.dataset.id}"]`);
+                if (viva) {
+                    viva.animate([
+                        { transform: 'translateX(0)' }, { transform: 'translateX(-6px) rotate(-0.4deg)' },
+                        { transform: 'translateX(6px) rotate(0.4deg)' }, { transform: 'translateX(-3px)' },
+                        { transform: 'translateX(0)' },
+                    ], { duration: 350 });
+                }
+            };
+        }
+
+        function animarReaccion(tipo, origen, card) {
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // sin movimiento
+            if (tipo === 'like') {
+                animarMandarina(origen);
+            } else {
+                const r = card.getBoundingClientRect();
+                animarTomate(origen, { x: r.left + r.width / 2, y: r.top + r.height / 2 }, card);
+            }
+        }
+
+        async function reaccionar(btn) {
+            const card = btn.closest('.post-card');
+            const botones = card.querySelectorAll('.react-btn');
+            const r = btn.getBoundingClientRect();
+            const origen = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+            const tipo = btn.dataset.tipo;
+            const id = Number(btn.dataset.id);
+
+            botones.forEach((b) => { b.disabled = true; }); // evita el doble clic
+
+            try {
+                const res = await fetch(REACCIONES_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ publicacion_id: id, tipo }),
+                });
+                const data = await res.json().catch(() => ({}));
+
+                if (res.status === 201) {
+                    misReacciones[id] = tipo;
+                    animarReaccion(tipo, origen, card);
+                } else {
+                    alert(data.error || 'No se pudo registrar la reacción.');
+                }
+            } catch (err) {
+                console.error('Error al reaccionar:', err);
+                alert('Error de red al reaccionar.');
+            }
+
+            // Se refrescan contadores y estado de los botones.
+            cargarPublicaciones({ silencioso: true });
         }
 
         function renderPost(post) {
@@ -346,6 +493,7 @@ require_once __DIR__ . '/includes/Admin.php';
                             <button class="btn-link delete-btn" data-id="${post.id}" data-autor="${escapeHtml(post.nickname)}" data-ajena="${esPropia ? '0' : '1'}">Eliminar</button>
                         </div>
                     ` : ''}
+                    ${renderReacciones(post, esPropia)}
                     <div class="post-replies-bar">
                         <button type="button" class="btn-link replies-toggle">💬 Respuestas (${Number(post.total_respuestas) || 0})</button>
                     </div>
@@ -521,6 +669,12 @@ require_once __DIR__ . '/includes/Admin.php';
         cancelBtn.addEventListener('click', resetForm);
 
         feedEl.addEventListener('click', async (e) => {
+            const botonReaccion = e.target.closest('.react-btn');
+            if (botonReaccion && !botonReaccion.disabled) {
+                reaccionar(botonReaccion);
+                return;
+            }
+
             if (e.target.classList.contains('tag-chip')) {
                 seleccionarTag(e.target.dataset.tag);
                 return;

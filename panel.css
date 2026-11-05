@@ -532,3 +532,71 @@ html {
     letter-spacing: 0.05em;
     vertical-align: middle;
 }
+
+/* ---- Reacciones: mandarina (like) y tomate (dislike) ---- */
+.post-reactions {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.8rem;
+}
+
+.react-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 217, 0, 0.45);
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.react-btn:hover:not(:disabled) {
+    transform: scale(1.06);
+    background: rgba(255, 217, 0, 0.18);
+}
+
+.react-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.react-btn.is-active {
+    opacity: 1;
+    background: rgba(255, 217, 0, 0.28);
+    border-color: #ffd900;
+}
+
+.react-emoji {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+/* Elementos de la animación: viven en <body> y se eliminan al terminar. */
+.fx-emoji {
+    position: fixed;
+    z-index: 9999;
+    font-size: 2rem;
+    line-height: 1;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.fx-splat {
+    position: fixed;
+    z-index: 9998;
+    width: 150px;
+    height: 120px;
+    pointer-events: none;
+    border-radius: 48% 52% 45% 55% / 55% 45% 55% 45%;
+    background:
+        radial-gradient(circle at 30% 35%, #ff6b4a 0 14%, transparent 15%),
+        radial-gradient(circle at 70% 60%, #d62a1a 0 16%, transparent 17%),
+        radial-gradient(circle at 55% 25%, #ff6b4a 0 9%, transparent 10%),
+        radial-gradient(circle at 50% 50%, #c4200f 0 55%, rgba(196, 32, 15, 0.6) 70%, transparent 72%);
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.4));
+    will-change: transform, opacity;
+}

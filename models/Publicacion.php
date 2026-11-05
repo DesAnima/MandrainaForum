@@ -2,6 +2,7 @@
 // models/Publicacion.php
 require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/Respuesta.php';
+require_once __DIR__ . '/Reaccion.php';
 
 class Publicacion
 {
@@ -27,6 +28,8 @@ class Publicacion
         ");
         // El listado cuenta las respuestas de cada publicación.
         Respuesta::crearTabla($this->pdo);
+        // ...y también las reacciones (likes / dislikes).
+        Reaccion::crearTabla($this->pdo);
         $this->pdo->exec("
             CREATE TABLE IF NOT EXISTS publicacion_tags (
                 publicacion_id INTEGER NOT NULL REFERENCES publicaciones(id) ON DELETE CASCADE,
@@ -92,6 +95,10 @@ class Publicacion
                        u.nickname,
                        (SELECT COUNT(*) FROM respuestas r
                         WHERE r.publicacion_id = p.id)::int AS total_respuestas,
+                       (SELECT COUNT(*) FROM reacciones x
+                        WHERE x.publicacion_id = p.id AND x.tipo = 'like')::int AS likes,
+                       (SELECT COUNT(*) FROM reacciones x
+                        WHERE x.publicacion_id = p.id AND x.tipo = 'dislike')::int AS dislikes,
                        COALESCE((SELECT string_agg(pt.tag, ',' ORDER BY pt.tag)
                                  FROM publicacion_tags pt
                                  WHERE pt.publicacion_id = p.id), '') AS tags_csv
@@ -109,6 +116,10 @@ class Publicacion
                        u.nickname,
                        (SELECT COUNT(*) FROM respuestas r
                         WHERE r.publicacion_id = p.id)::int AS total_respuestas,
+                       (SELECT COUNT(*) FROM reacciones x
+                        WHERE x.publicacion_id = p.id AND x.tipo = 'like')::int AS likes,
+                       (SELECT COUNT(*) FROM reacciones x
+                        WHERE x.publicacion_id = p.id AND x.tipo = 'dislike')::int AS dislikes,
                        COALESCE((SELECT string_agg(pt.tag, ',' ORDER BY pt.tag)
                                  FROM publicacion_tags pt
                                  WHERE pt.publicacion_id = p.id), '') AS tags_csv

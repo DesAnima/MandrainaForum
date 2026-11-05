@@ -37,6 +37,26 @@ El permiso se valida en el servidor (`includes/Admin.php`, usado por
 solo muestra el botón *Eliminar* en todas las tarjetas y una insignia ADMIN.
 Cada borrado ajeno queda en el log (`[admin] ... eliminó la publicación #id`).
 
+## Reacciones (mandarina y tomate)
+
+Cada publicación tiene dos botones: 🍊 **mandarina** (like) y 🍅 **tomate**
+(dislike), con su contador visible. Reglas, validadas en el servidor
+(`controllers/ReaccionController.php`) y por la clave primaria
+`(publicacion_id, user_id)` de la tabla `reacciones`:
+
+- No se puede reaccionar a la publicación propia (403).
+- Un usuario reacciona una sola vez por publicación; la reacción es
+  definitiva, no se cambia ni se quita (409).
+- Solo aplica a publicaciones, no a respuestas.
+
+`GET /api/v1/reacciones.php` devuelve las reacciones del usuario (va aparte del
+feed, que es igual para todos y se cachea en Redis) y
+`POST /api/v1/reacciones.php` con `{publicacion_id, tipo}` reacciona. Los
+contadores (`likes`, `dislikes`) vienen en cada publicación del feed y se
+actualizan en vivo. Las animaciones (mandarinas que suben, tomate que se
+estrella contra la tarjeta) las ve solo quien hace clic, se eliminan al
+terminar y se omiten con `prefers-reduced-motion`.
+
 ## Registro anónimo por QR
 
 No hay formulario de contraseña en el registro: el usuario solo elige un
