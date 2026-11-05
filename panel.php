@@ -14,6 +14,13 @@ require_once __DIR__ . '/includes/Admin.php';
 <body class="panel-body">
     <header class="panel-header">
         <h1>Mandraina Forum</h1>
+        <!-- Mascota: un cobayo que pasea por la barra y salta si lo tocás -->
+        <div class="cobayo-pista" id="cobayo-pista">
+            <button type="button" class="cobayo" id="cobayo" aria-label="Mandraina, la mascota del foro. Tocala para que salte" title="¡Mandraina!">
+                <span class="cobayo-cuerpo" id="cobayo-cuerpo"></span>
+                <span class="cobayo-globo" id="cobayo-globo" aria-hidden="true">¡wiik!</span>
+            </button>
+        </div>
         <div class="panel-header-user">
             <div class="activos-box" id="activos-box" role="status" aria-live="polite" title="Usuarios con el panel abierto en este momento">
                 <span class="activos-label"><span class="activos-punto" aria-hidden="true"></span>Mandrainos activos</span>
@@ -1520,6 +1527,110 @@ require_once __DIR__ . '/includes/Admin.php';
             actualizarBarraSuperior();
         });
         actualizarBarraSuperior();
+
+        // ---- Mascota: cobayo que pasea por la barra superior ----
+        // Camina de un lado a otro, se detiene a ratos y salta al tocarlo
+        // (clic, toque en el celular o al pasarle el mouse por encima).
+        (function iniciarCobayo() {
+            const pista = document.getElementById('cobayo-pista');
+            const cobayo = document.getElementById('cobayo');
+            const cuerpo = document.getElementById('cobayo-cuerpo');
+            const globo = document.getElementById('cobayo-globo');
+            if (!pista || !cobayo || !cuerpo) return;
+
+            const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const VELOCIDAD = 38;            // px por segundo
+            const MARGEN = 6;                // separación con los bordes de la barra
+            let x = 40 + Math.random() * 200;
+            let dir = Math.random() < 0.5 ? 1 : -1;
+            let estado = 'caminar';          // caminar | quieto | saltando
+            let hasta = performance.now() + 2000 + Math.random() * 3000;
+            let ultimo = performance.now();
+            let globoTimer = null;
+            let fase = 0;
+
+            function ancho() { return pista.clientWidth; }
+            function limite() { return Math.max(MARGEN, ancho() - cobayo.offsetWidth - MARGEN); }
+
+            function pintar() {
+                cobayo.style.transform = `translateX(${x.toFixed(1)}px)`;
+                cuerpo.style.setProperty('--dir', dir);
+            }
+
+            function decirAlgo(texto) {
+                if (!globo) return;
+                globo.textContent = texto;
+                globo.classList.add('visible');
+                clearTimeout(globoTimer);
+                globoTimer = setTimeout(() => globo.classList.remove('visible'), 900);
+            }
+
+            function saltar() {
+                if (estado === 'saltando') return;
+                const previo = estado;
+                estado = 'saltando';
+                const alto = sinMovimiento ? 6 : 22;
+                const anim = cuerpo.animate([
+                    { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 0 },
+                    { transform: `scaleX(${dir}) translateY(0) scale(1.12, 0.82)`, offset: 0.15 },
+                    { transform: `scaleX(${dir}) translateY(-${alto}px) scale(0.92, 1.1)`, offset: 0.5 },
+                    { transform: `scaleX(${dir}) translateY(0) scale(1.12, 0.82)`, offset: 0.85 },
+                    { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 1 }
+                ], { duration: 520, easing: 'ease-in-out' });
+                decirAlgo(['¡wiik!', '¡wiik wiik!', '¡Mandraina!'][Math.floor(Math.random() * 3)]);
+                anim.onfinish = anim.oncancel = () => {
+                    estado = previo === 'saltando' ? 'quieto' : previo;
+                    hasta = performance.now() + 600 + Math.random() * 1200;
+                };
+            }
+
+            cobayo.addEventListener('click', saltar);
+            // Pasar el mouse por encima también lo asusta (con pausa para que no se vuelva molesto).
+            let ultimoHover = 0;
+            cobayo.addEventListener('pointerenter', (e) => {
+                if (e.pointerType !== 'mouse') return;
+                const ahora = performance.now();
+                if (ahora - ultimoHover < 1500) return;
+                ultimoHover = ahora;
+                saltar();
+            });
+
+            function paso(ahora) {
+                const dt = Math.min(0.05, (ahora - ultimo) / 1000);
+                ultimo = ahora;
+
+                if (!sinMovimiento && estado !== 'saltando') {
+                    if (estado === 'caminar') {
+                        x += dir * VELOCIDAD * dt;
+                        const max = limite();
+                        if (x <= MARGEN) { x = MARGEN; dir = 1; }
+                        else if (x >= max) { x = max; dir = -1; }
+                        // Balanceo al caminar
+                        fase += dt * 11;
+                        cuerpo.style.transform = `scaleX(${dir}) translateY(${(-Math.abs(Math.sin(fase)) * 2.2).toFixed(2)}px) rotate(${(Math.sin(fase) * 5).toFixed(1)}deg)`;
+                        if (ahora > hasta) {
+                            estado = 'quieto';
+                            hasta = ahora + 1200 + Math.random() * 2500;
+                            cuerpo.style.transform = `scaleX(${dir})`;
+                        }
+                    } else if (ahora > hasta) {
+                        estado = 'caminar';
+                        if (Math.random() < 0.4) dir = -dir;
+                        hasta = ahora + 3000 + Math.random() * 5000;
+                    }
+                } else if (estado !== 'saltando') {
+                    cuerpo.style.transform = `scaleX(${dir})`;
+                }
+
+                x = Math.min(Math.max(MARGEN, x), limite());
+                pintar();
+                requestAnimationFrame(paso);
+            }
+
+            window.addEventListener('resize', () => { x = Math.min(x, limite()); pintar(); });
+            pintar();
+            requestAnimationFrame((t) => { ultimo = t; paso(t); });
+        })();
 
         window.addEventListener('scroll', actualizarBtnSubir, { passive: true });
         btnSubir.addEventListener('click', subirAlTope);

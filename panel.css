@@ -1219,3 +1219,99 @@ html {
         scrollbar-color: #ffd900 #000;
     }
 }
+
+/* -------------------
+   MASCOTA: COBAYO EN LA BARRA SUPERIOR
+   Un círculo con la cara de mandraina que pasea por la barra. La pista es
+   transparente a los clics (pointer-events: none): solo el cobayo los recibe,
+   así no tapa los botones de la barra. Queda por debajo de los desplegables
+   (z-index 60).
+------------------- */
+
+.cobayo-pista {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 3px;
+    height: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.cobayo {
+    --tam: 34px;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: var(--tam);
+    height: var(--tam);
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    cursor: pointer;
+    pointer-events: auto;
+    will-change: transform;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.cobayo:focus-visible {
+    outline: 2px solid #ffd900;
+    outline-offset: 2px;
+}
+
+.cobayo-cuerpo {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 2px solid #ffd900;
+    box-sizing: border-box;
+    background-color: #fff;
+    background-image: url("images.jpg");
+    /* Recorte sobre la carita (esquina superior izquierda) para que no se lea el texto de la foto */
+    background-size: 207%;
+    background-position: 25% 0%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+    transform-origin: 50% 100%;
+}
+
+.cobayo-globo {
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%) scale(0.8);
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: #ffd900;
+    color: #000;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.cobayo-globo.visible {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+
+.panel-header.compacto .cobayo-pista {
+    bottom: 2px;
+}
+
+.panel-header.compacto .cobayo {
+    --tam: 24px;
+}
+
+.panel-header.compacto .cobayo-cuerpo {
+    border-width: 1.5px;
+}
+
+@media (max-width: 480px) {
+    .cobayo {
+        --tam: 28px;
+    }
+}
