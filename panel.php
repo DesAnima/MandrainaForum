@@ -63,6 +63,12 @@ require_once __DIR__ . '/includes/Admin.php';
             <p id="feed-status">Cargando publicaciones...</p>
         </section>
     </main>
+
+    <aside class="tags-bar tags-bar-general" aria-label="Tags generales">
+        <h2>Tags generales</h2>
+        <ul id="tags-generales-list" class="tags-list"></ul>
+        <p id="tags-generales-empty" class="tags-empty" hidden>Todavía nadie usó tags.</p>
+    </aside>
     </div>
 
     <button type="button" id="btn-subir" class="btn-subir" aria-label="Volver arriba" title="Volver arriba" aria-hidden="true" tabindex="-1"><span class="btn-subir-flecha" aria-hidden="true">↑</span></button>
@@ -98,6 +104,10 @@ require_once __DIR__ . '/includes/Admin.php';
         let tagActivo = null;
         let seqTags = 0;
         let misTags = [];
+        let tagsGenerales = [];
+        let seqTagsGenerales = 0;
+        const tagsGeneralesList = document.getElementById('tags-generales-list');
+        const tagsGeneralesEmpty = document.getElementById('tags-generales-empty');
 
         function renderTagsBar() {
             const todas = `
@@ -114,6 +124,32 @@ require_once __DIR__ . '/includes/Admin.php';
 
             tagsList.innerHTML = todas + items;
             tagsEmpty.hidden = misTags.length > 0;
+        }
+
+        function renderTagsGenerales() {
+            tagsGeneralesList.innerHTML = tagsGenerales.map((t) => `
+                <li>
+                    <button type="button" class="tag-item ${tagActivo === t.tag ? 'active' : ''}" data-tag="${escapeHtml(t.tag)}">
+                        <span>#${escapeHtml(t.tag)}</span>
+                        <span class="tag-total">${Number(t.total)}</span>
+                    </button>
+                </li>
+            `).join('');
+            tagsGeneralesEmpty.hidden = tagsGenerales.length > 0;
+        }
+
+        async function cargarTagsGenerales() {
+            try {
+                const miSeq = ++seqTagsGenerales;
+                const res = await fetch(`${TAGS_URL}?alcance=general`, { cache: 'no-store' });
+                if (!res.ok) return;
+                const data = await res.json();
+                if (miSeq !== seqTagsGenerales) return; // llegó otra respuesta más nueva
+                tagsGenerales = data;
+                renderTagsGenerales();
+            } catch (err) {
+                console.error('Error al cargar los tags generales:', err);
+            }
         }
 
         async function cargarMisTags() {
@@ -135,11 +171,17 @@ require_once __DIR__ . '/includes/Admin.php';
             feedFilter.hidden = tagActivo === null;
             feedFilterTag.textContent = tagActivo === null ? '' : `#${tagActivo}`;
             renderTagsBar();
+            renderTagsGenerales();
             primeraCarga = true; // las tarjetas del nuevo filtro no son "novedades"
             cargarPublicaciones();
         }
 
         tagsList.addEventListener('click', (e) => {
+            const boton = e.target.closest('.tag-item');
+            if (boton) seleccionarTag(boton.dataset.tag);
+        });
+
+        tagsGeneralesList.addEventListener('click', (e) => {
             const boton = e.target.closest('.tag-item');
             if (boton) seleccionarTag(boton.dataset.tag);
         });
@@ -682,6 +724,7 @@ require_once __DIR__ . '/includes/Admin.php';
                 form.querySelector('.reply-count').textContent = `0 / ${input.maxLength}`;
                 cargarRespuestas(card);
                 cargarMisTags();
+                cargarTagsGenerales();
             } catch (err) {
                 console.error('Error al guardar la respuesta:', err);
                 alert('Error de red al guardar la respuesta.');
@@ -738,6 +781,7 @@ require_once __DIR__ . '/includes/Admin.php';
                 resetForm();
                 cargarPublicaciones();
                 cargarMisTags();
+                cargarTagsGenerales();
             } catch (err) {
                 console.error('Error al guardar la publicación:', err);
                 alert('Error de red al guardar la publicación.');
@@ -838,6 +882,7 @@ require_once __DIR__ . '/includes/Admin.php';
 
                     cargarPublicaciones();
                     cargarMisTags();
+                    cargarTagsGenerales();
                 } catch (err) {
                     console.error('Error al eliminar la publicación:', err);
                     alert('Error de red al eliminar la publicación.');
@@ -887,7 +932,7 @@ require_once __DIR__ . '/includes/Admin.php';
                     versionRT = version; // primera lectura: punto de partida
                 } else if (version !== versionRT) {
                     versionRT = version;
-                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags()]);
+                    await Promise.all([cargarPublicaciones({ silencioso: true }), cargarMisTags(), cargarTagsGenerales()]);
                 }
             } catch (err) {
                 // Sin red o servidor caído: se reintenta en el próximo ciclo.
@@ -897,6 +942,7 @@ require_once __DIR__ . '/includes/Admin.php';
         }
 
         renderTagsBar();
+        renderTagsGenerales();
 
         // ---- Admin: limpiar publicaciones duplicadas ----
         const btnDuplicados = document.getElementById('btn-duplicados');
@@ -922,6 +968,7 @@ require_once __DIR__ . '/includes/Admin.php';
                     alert(`Listo: se eliminaron ${r.eliminadas} publicaciones duplicadas.`);
                     cargarPublicaciones();
                     cargarMisTags();
+                    cargarTagsGenerales();
                 } catch (err) {
                     console.error('Error al limpiar duplicados:', err);
                     alert('Error de red al limpiar duplicados.');
@@ -991,6 +1038,7 @@ require_once __DIR__ . '/includes/Admin.php';
         leerVersion().then((v) => { if (versionRT === null) versionRT = v; }).catch(() => {});
         cargarPublicaciones();
         cargarMisTags();
+        cargarTagsGenerales();
 
         setInterval(buscarNovedades, POLL_MS);
         document.addEventListener('visibilitychange', () => {

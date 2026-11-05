@@ -251,6 +251,7 @@ repetidos. Un tag vulgar se rechaza con 400. En un `PUT`, si no se envía
 |--------|---------------------------------------|----------------------------------------------------------------|
 | GET    | `/api/v1/publicaciones?tag={tag}`     | Solo las publicaciones con ese tag (filtra sobre el feed cacheado) |
 | GET    | `/api/v1/tags.php`                    | Tags en los que participa el usuario (publicó o respondió), con el total de publicaciones de cada uno. Requiere sesión |
+| GET    | `/api/v1/tags.php?alcance=general`    | Tags más usados por todos los usuarios (top 15), con el total de publicaciones de cada uno. Requiere sesión |
 
 Cada publicación del feed incluye `tags` (lista). La tabla `publicacion_tags`
 se crea sola (ver también `migrations/005_tags.sql`). Como cambió la forma de

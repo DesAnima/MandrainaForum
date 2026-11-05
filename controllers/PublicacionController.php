@@ -202,6 +202,13 @@ class PublicacionController
         $this->jsonResponse(200, $this->model()->tagsDeParticipacion($userId));
     }
 
+    // GET /api/v1/tags.php?alcance=general: tags más usados por todos.
+    public function tagsGenerales(): void
+    {
+        $this->requireAuth();
+        $this->jsonResponse(200, $this->model()->tagsPopulares());
+    }
+
     public function show(int $id): void
     {
         $publicacion = $this->model()->getById($id);

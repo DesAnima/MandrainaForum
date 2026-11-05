@@ -96,6 +96,21 @@ class Publicacion
         return $stmt->fetchAll();
     }
 
+    /**
+     * Tags generales: los más usados por todos los usuarios, con el total de
+     * publicaciones de cada uno. Los más usados primero.
+     */
+    public function tagsPopulares(int $limite = 15): array
+    {
+        $limite = max(1, min(50, $limite));
+        $sql = "SELECT tag, COUNT(*)::int AS total
+                FROM publicacion_tags
+                GROUP BY tag
+                ORDER BY total DESC, tag ASC
+                LIMIT {$limite}";
+        return $this->pdo->query($sql)->fetchAll();
+    }
+
     public function getAll(): array
     {
         $sql = "SELECT p.id, p.user_id, p.titulo, p.contenido,

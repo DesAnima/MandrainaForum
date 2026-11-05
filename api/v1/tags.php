@@ -4,6 +4,9 @@
 // Tags en los que participa el usuario con sesión iniciada (publicó o
 // respondió en alguna publicación con ese tag), con el total de
 // publicaciones que tiene cada tag.
+//
+// GET /api/v1/tags.php?alcance=general
+// Tags más usados por todos los usuarios, con su total de publicaciones.
 
 require_once __DIR__ . '/../../includes/session.php';
 mandraina_session_start();
@@ -27,4 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     exit;
 }
 
-(new PublicacionController())->misTags();
+$controller = new PublicacionController();
+if (($_GET['alcance'] ?? '') === 'general') {
+    $controller->tagsGenerales();
+} else {
+    $controller->misTags();
+}
