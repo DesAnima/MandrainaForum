@@ -1,6 +1,5 @@
 <?php
 // controllers/ReaccionController.php
-require_once __DIR__ . '/../models/Publicacion.php';
 require_once __DIR__ . '/../models/Reaccion.php';
 require_once __DIR__ . '/../includes/Feed.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
@@ -11,13 +10,7 @@ class ReaccionController
     private const REACCIONES_MAX = 30;
     private const REACCIONES_VENTANA = 60; // segundos
 
-    private ?Publicacion $publicaciones = null;
     private ?Reaccion $model = null;
-
-    private function publicaciones(): Publicacion
-    {
-        return $this->publicaciones ??= new Publicacion();
-    }
 
     private function model(): Reaccion
     {
@@ -64,12 +57,12 @@ class ReaccionController
             $this->jsonResponse(400, ['error' => 'Se requiere "publicacion_id" y "tipo" ("like" o "dislike").']);
         }
 
-        $publicacion = $this->publicaciones()->getById($publicacionId);
-        if (!$publicacion) {
+        $autorId = $this->model()->autorDePublicacion($publicacionId);
+        if ($autorId === null) {
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $publicacionId]);
         }
 
-        if ((int) $publicacion['user_id'] === $userId) {
+        if ($autorId === $userId) {
             $this->jsonResponse(403, ['error' => 'No podés reaccionar a tu propia publicación.']);
         }
 
@@ -82,12 +75,6 @@ class ReaccionController
         // los demás paneles abiertos.
         Feed::invalidar();
 
-        $actual = $this->publicaciones()->getById($publicacionId);
-        $this->jsonResponse(201, [
-            'publicacion_id' => $publicacionId,
-            'tipo' => $tipo,
-            'likes' => (int) ($actual['likes'] ?? 0),
-            'dislikes' => (int) ($actual['dislikes'] ?? 0),
-        ]);
+        $this->jsonResponse(201, ['publicacion_id' => $publicacionId, 'tipo' => $tipo] + $this->model()->conteos($publicacionId));
     }
 }

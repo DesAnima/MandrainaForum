@@ -9,7 +9,7 @@ require_once __DIR__ . '/includes/Admin.php';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Mandraina Forum</title>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="stylesheet" href="panel.css" />
+    <link rel="stylesheet" href="panel.css?v=<?= (int) @filemtime(__DIR__ . '/panel.css') ?>" />
 </head>
 <body class="panel-body">
     <header class="panel-header">
@@ -355,19 +355,27 @@ require_once __DIR__ . '/includes/Admin.php';
         // Los elementos animados viven en <body> (position: fixed), no dentro
         // de la tarjeta: así la actualización en vivo, que rehace la tarjeta
         // cuando cambian los contadores, no los corta. Cada uno se crea, se
-        // anima y se elimina al terminar.
-        function crearFx(emoji, x, y, clase = '') {
+        // anima y se elimina al terminar. Los estilos esenciales van en línea
+        // para que no dependan de que el CSS esté cargado o cacheado.
+        const sinMovimiento = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        function crearFx(emoji, x, y) {
             const el = document.createElement('span');
-            el.className = `fx-emoji ${clase}`.trim();
+            el.className = 'fx-emoji';
             el.textContent = emoji;
             el.setAttribute('aria-hidden', 'true');
-            el.style.left = `${x}px`;
-            el.style.top = `${y}px`;
+            el.style.cssText = `position:fixed;left:${x}px;top:${y}px;z-index:9999;font-size:2.2rem;line-height:1;pointer-events:none;`;
             document.body.appendChild(el);
             return el;
         }
 
         function animarMandarina(origen) {
+            if (sinMovimiento()) {
+                // Versión suave: sin desplazamiento, solo aparece y se desvanece.
+                const el = crearFx('🍊', origen.x, origen.y - 30);
+                el.animate([{ opacity: 0, transform: 'translate(-50%, -50%)' }, { opacity: 1, offset: 0.3, transform: 'translate(-50%, -50%)' }, { opacity: 0, transform: 'translate(-50%, -50%)' }], { duration: 900 }).onfinish = () => el.remove();
+                return;
+            }
             // Tres mandarinas que suben girando y se desvanecen.
             [-28, 0, 28].forEach((desvio, i) => {
                 const el = crearFx('🍊', origen.x, origen.y);
@@ -380,7 +388,34 @@ require_once __DIR__ . '/includes/Admin.php';
             });
         }
 
-        function animarTomate(origen, destino, card) {
+        function ponerMancha(destino) {
+            const mancha = document.createElement('div');
+            mancha.className = 'fx-splat';
+            mancha.style.cssText = `position:fixed;left:${destino.x}px;top:${destino.y}px;z-index:9998;width:150px;height:120px;pointer-events:none;`
+                + 'border-radius:48% 52% 45% 55% / 55% 45% 55% 45%;'
+                + 'background:radial-gradient(circle at 30% 35%,#ff6b4a 0 14%,transparent 15%),radial-gradient(circle at 70% 60%,#d62a1a 0 16%,transparent 17%),radial-gradient(circle at 55% 25%,#ff6b4a 0 9%,transparent 10%),radial-gradient(circle at 50% 50%,#c4200f 0 55%,rgba(196,32,15,.6) 70%,transparent 72%);';
+            document.body.appendChild(mancha);
+            const anim = mancha.animate(sinMovimiento() ? [
+                { opacity: 0.9, transform: 'translate(-50%, -50%) scale(1)' },
+                { opacity: 0, transform: 'translate(-50%, -50%) scale(1)' },
+            ] : [
+                { transform: 'translate(-50%, -50%) scale(0.2)', opacity: 1 },
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 0.95, offset: 0.25 },
+                { transform: 'translate(-50%, -48%) scale(1.05)', opacity: 0.85, offset: 0.7 },
+                { transform: 'translate(-50%, -30%) scale(1.1)', opacity: 0 },
+            ], { duration: sinMovimiento() ? 900 : 1400, easing: 'ease-out', fill: 'both' });
+            anim.onfinish = () => mancha.remove();
+        }
+
+        function animarTomate(origen, destino, idPost) {
+            if (sinMovimiento()) {
+                // Versión suave: sin vuelo; el tomate y la mancha aparecen y se desvanecen.
+                ponerMancha(destino);
+                const el = crearFx('🍅', destino.x, destino.y);
+                el.animate([{ opacity: 1, transform: 'translate(-50%, -50%)' }, { opacity: 0, transform: 'translate(-50%, -50%)' }], { duration: 900 }).onfinish = () => el.remove();
+                return;
+            }
+
             const dx = destino.x - origen.x;
             const dy = destino.y - origen.y;
             const tomate = crearFx('🍅', origen.x, origen.y);
@@ -393,23 +428,10 @@ require_once __DIR__ . '/includes/Admin.php';
 
             vuelo.onfinish = () => {
                 tomate.remove();
-
-                // Impacto: la mancha crece y se desvanece.
-                const mancha = document.createElement('div');
-                mancha.className = 'fx-splat';
-                mancha.style.left = `${destino.x}px`;
-                mancha.style.top = `${destino.y}px`;
-                document.body.appendChild(mancha);
-                const splat = mancha.animate([
-                    { transform: 'translate(-50%, -50%) scale(0.2)', opacity: 1 },
-                    { transform: 'translate(-50%, -50%) scale(1)', opacity: 0.95, offset: 0.25 },
-                    { transform: 'translate(-50%, -48%) scale(1.05)', opacity: 0.85, offset: 0.7 },
-                    { transform: 'translate(-50%, -30%) scale(1.1)', opacity: 0 },
-                ], { duration: 1400, easing: 'ease-out', fill: 'both' });
-                splat.onfinish = () => mancha.remove();
+                ponerMancha(destino);
 
                 // Sacudón de la tarjeta (si sigue en pantalla).
-                const viva = document.querySelector(`.post-card[data-id="${card.dataset.id}"]`);
+                const viva = document.querySelector(`.post-card[data-id="${idPost}"]`);
                 if (viva) {
                     viva.animate([
                         { transform: 'translateX(0)' }, { transform: 'translateX(-6px) rotate(-0.4deg)' },
@@ -421,52 +443,75 @@ require_once __DIR__ . '/includes/Admin.php';
         }
 
         function animarReaccion(tipo, origen, card) {
-            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; // sin movimiento
-            if (tipo === 'like') {
-                animarMandarina(origen);
-            } else {
-                const r = card.getBoundingClientRect();
-                animarTomate(origen, { x: r.left + r.width / 2, y: r.top + r.height / 2 }, card);
+            try {
+                if (tipo === 'like') {
+                    animarMandarina(origen);
+                } else {
+                    const r = card.getBoundingClientRect();
+                    animarTomate(origen, { x: r.left + r.width / 2, y: r.top + r.height / 2 }, card.dataset.id);
+                }
+            } catch (err) {
+                console.error('Error en la animación:', err); // la animación nunca debe romper la reacción
             }
         }
 
+        function tarjetaViva(id) {
+            return document.querySelector(`.post-card[data-id="${id}"]`);
+        }
+
+        // La animación y el cambio de contadores arrancan en el clic, sin
+        // esperar al servidor (que puede tardar). Si el servidor rechaza la
+        // reacción, se deshace todo y se avisa.
         async function reaccionar(btn) {
             const card = btn.closest('.post-card');
-            const botones = card.querySelectorAll('.react-btn');
+            const barra = card.querySelector('.post-reactions');
             const r = btn.getBoundingClientRect();
             const origen = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
             const tipo = btn.dataset.tipo;
             const id = Number(btn.dataset.id);
 
-            const estadoPrevio = [...botones].map((b) => b.disabled);
-            botones.forEach((b) => { b.disabled = true; }); // evita el doble clic
-            let exito = false;
+            const htmlPrevio = barra.innerHTML;
+            const reaccionPrevia = misReacciones[id] || null;
 
+            // --- Cambio inmediato en pantalla ---
+            const contador = (t) => card.querySelector(`.react-${t} .react-count`);
+            if (reaccionPrevia) contador(reaccionPrevia).textContent = Math.max(0, Number(contador(reaccionPrevia).textContent) - 1);
+            contador(tipo).textContent = Number(contador(tipo).textContent) + 1;
+            card.querySelectorAll('.react-btn').forEach((b) => {
+                b.classList.toggle('is-active', b.dataset.tipo === tipo);
+                b.disabled = true; // sin doble clic mientras responde el servidor
+            });
+            misReacciones[id] = tipo;
+            animarReaccion(tipo, origen, card);
+
+            // --- Confirmación del servidor ---
+            let error = null;
             try {
                 const res = await fetch(REACCIONES_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ publicacion_id: id, tipo }),
                 });
-                const data = await res.json().catch(() => ({}));
-
-                if (res.status === 201) {
-                    exito = true;
-                    misReacciones[id] = tipo;
-                    animarReaccion(tipo, origen, card);
-                } else {
-                    alert(data.error || 'No se pudo registrar la reacción.');
+                if (res.status !== 201) {
+                    const data = await res.json().catch(() => ({}));
+                    error = data.error || 'No se pudo registrar la reacción.';
                 }
             } catch (err) {
                 console.error('Error al reaccionar:', err);
-                alert('Error de red al reaccionar.');
+                error = 'Error de red al reaccionar.';
             }
 
-            // Si falló, los botones vuelven a su estado anterior (si salió bien,
-            // el refresco de abajo rehace la tarjeta con el estado nuevo).
-            if (!exito) botones.forEach((b, i) => { b.disabled = estadoPrevio[i]; });
+            if (error !== null) {
+                if (reaccionPrevia) misReacciones[id] = reaccionPrevia; else delete misReacciones[id];
+                const viva = tarjetaViva(id);
+                if (viva) viva.querySelector('.post-reactions').innerHTML = htmlPrevio;
+                alert(error);
+            } else {
+                const viva = tarjetaViva(id);
+                if (viva) viva.querySelectorAll('.react-btn').forEach((b) => { b.disabled = b.dataset.tipo === tipo; });
+            }
 
-            // Se refrescan contadores y estado de los botones.
+            // Se sincronizan los contadores reales con el servidor.
             cargarPublicaciones({ silencioso: true });
         }
 

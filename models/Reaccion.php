@@ -18,7 +18,37 @@ class Reaccion
     public function __construct()
     {
         $this->pdo = getPDO();
-        self::crearTabla($this->pdo);
+
+        // En régimen normal basta una consulta barata para saber que la tabla
+        // existe. Solo si falta se crean todas las tablas (en orden, porque
+        // reacciones depende de publicaciones y usuarios).
+        $existe = $this->pdo->query("SELECT to_regclass('reacciones') IS NOT NULL")->fetchColumn();
+        if (!$existe) {
+            require_once __DIR__ . '/Publicacion.php'; // su constructor crea todo, reacciones incluida
+            new Publicacion();
+        }
+    }
+
+    /** user_id del autor de una publicación, o null si no existe. */
+    public function autorDePublicacion(int $publicacionId): ?int
+    {
+        $stmt = $this->pdo->prepare("SELECT user_id FROM publicaciones WHERE id = :id");
+        $stmt->execute([':id' => $publicacionId]);
+        $valor = $stmt->fetchColumn();
+        return $valor === false ? null : (int) $valor;
+    }
+
+    /** @return array{likes:int, dislikes:int} */
+    public function conteos(int $publicacionId): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT COUNT(*) FILTER (WHERE tipo = 'like')::int AS likes,
+                   COUNT(*) FILTER (WHERE tipo = 'dislike')::int AS dislikes
+            FROM reacciones WHERE publicacion_id = :pid
+        ");
+        $stmt->execute([':pid' => $publicacionId]);
+        $fila = $stmt->fetch();
+        return ['likes' => (int) $fila['likes'], 'dislikes' => (int) $fila['dislikes']];
     }
 
     // También se llama desde Publicacion: el listado cuenta las reacciones,
