@@ -3,6 +3,7 @@
    era la página y más grande la zona amarilla. */
 html {
     background: #000;
+    scroll-padding-top: 4rem; /* las anclas y scrollIntoView no quedan tapadas por la barra fija */
 }
 
 .panel-body {
@@ -264,7 +265,7 @@ html {
     width: 220px;
     flex-shrink: 0;
     position: sticky;
-    top: 1rem;
+    top: 4.5rem; /* debajo de la barra superior compacta */
     box-sizing: border-box;
     background: #000;
     border: 2px solid #ffd900;
@@ -764,7 +765,10 @@ html {
 ------------------- */
 
 .panel-header {
-    position: relative;
+    /* Fija arriba al bajar. Contiene a los menús desplegables (position: absolute). */
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
 .dropdown {
@@ -1004,5 +1008,101 @@ html {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+    }
+}
+
+/* -------------------
+   BARRA SUPERIOR COMPACTA
+   panel.php le agrega la clase "compacto" al bajar y se la saca al volver
+   arriba. Sin transiciones de tamaño: el script mide la altura antes y
+   después para que el contenido no salte.
+------------------- */
+
+.panel-header.compacto {
+    padding: 0.35rem 2rem;
+    gap: 0.3rem 1rem;
+    border-bottom-width: 2px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65);
+}
+
+.panel-header.compacto h1 {
+    font-size: 1.05rem;
+    white-space: nowrap;
+}
+
+.panel-header.compacto .panel-header-user {
+    gap: 0.6rem;
+    flex-wrap: nowrap;
+}
+
+.panel-header.compacto .activos-box {
+    flex-direction: row;
+    width: auto;
+    height: 32px;
+    padding: 0 0.7rem;
+    gap: 0.4rem;
+    border-radius: 999px;
+}
+
+/* Solo queda el puntito verde y el número (el texto sigue en el tooltip). */
+.panel-header.compacto .activos-label {
+    font-size: 0;
+}
+
+.panel-header.compacto .activos-punto {
+    margin-right: 0;
+}
+
+.panel-header.compacto .activos-num {
+    font-size: 1rem;
+}
+
+.panel-header.compacto .notif-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 0.95rem;
+}
+
+.panel-header.compacto .notif-badge {
+    top: -5px;
+    right: -5px;
+}
+
+.panel-header.compacto .avatar {
+    width: 28px;
+    height: 28px;
+}
+
+.panel-header.compacto .user-menu-btn {
+    padding: 0.1rem 0.6rem 0.1rem 0.15rem;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+    .panel-header.compacto {
+        padding: 0.35rem 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .panel-header.compacto {
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .panel-header.compacto h1 {
+        font-size: 0.95rem;
+    }
+
+    .panel-header.compacto .panel-header-user {
+        width: auto;
+        justify-content: flex-end;
+    }
+
+    .panel-header.compacto .user-menu-nombre,
+    .panel-header.compacto .user-menu-flecha {
+        display: none;
     }
 }

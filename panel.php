@@ -1373,6 +1373,43 @@ require_once __DIR__ . '/includes/Admin.php';
             frame = requestAnimationFrame(paso);
         }
 
+        // ---- Barra superior: queda fija al bajar y se achica ----
+        // Histéresis (entra pasados 80 px, sale antes de 20 px) para que no
+        // parpadee en el límite. Al achicarse, la diferencia de altura se
+        // devuelve como margen inferior: el alto total del flujo no cambia y
+        // el contenido no da un salto.
+        const barraSuperior = document.querySelector('.panel-header');
+        const SCROLL_COMPACTAR = 80;
+        const SCROLL_EXPANDIR = 20;
+
+        function ponerCompacta(compacta) {
+            const antes = barraSuperior.offsetHeight;
+            barraSuperior.classList.toggle('compacto', compacta);
+            barraSuperior.style.marginBottom = compacta
+                ? `${Math.max(0, antes - barraSuperior.offsetHeight)}px`
+                : '';
+        }
+
+        function actualizarBarraSuperior() {
+            const compacta = barraSuperior.classList.contains('compacto');
+            if (!compacta && window.scrollY > SCROLL_COMPACTAR) ponerCompacta(true);
+            else if (compacta && window.scrollY < SCROLL_EXPANDIR) ponerCompacta(false);
+        }
+
+        window.addEventListener('scroll', actualizarBarraSuperior, { passive: true });
+        let anchoVentana = window.innerWidth;
+        window.addEventListener('resize', () => {
+            // Solo si cambia el ancho (en el celular la barra del navegador dispara
+            // resize al bajar y no cambia nada). Con otro ancho cambian las alturas:
+            // se vuelve al estado normal y se recalcula.
+            if (window.innerWidth === anchoVentana) return;
+            anchoVentana = window.innerWidth;
+            barraSuperior.classList.remove('compacto');
+            barraSuperior.style.marginBottom = '';
+            actualizarBarraSuperior();
+        });
+        actualizarBarraSuperior();
+
         window.addEventListener('scroll', actualizarBtnSubir, { passive: true });
         btnSubir.addEventListener('click', subirAlTope);
         actualizarBtnSubir();
