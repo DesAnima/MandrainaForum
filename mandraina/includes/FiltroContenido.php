@@ -1,18 +1,13 @@
 <?php
 // includes/FiltroContenido.php
 //
-// Detecta lenguaje vulgar en un texto. Se usa para marcar publicaciones
-// como "sensibles" y que el panel oculte su contenido por defecto.
+// Detecta lenguaje vulgar en un texto. El worker elimina las publicaciones y
+// respuestas que lo contengan, y mientras tanto los listados las ocultan.
 //
 // Para agregar o quitar palabras, editá la lista PALABRAS (sin tildes).
 
 class FiltroContenido
 {
-    // Con esta cantidad de insultos (o más) el worker elimina la publicación
-    // o la respuesta. Con menos, el contenido queda visible pero con el
-    // cartel de precaución.
-    public const UMBRAL_ELIMINACION = 4;
-
     // Se escriben en minúscula y sin tildes (la ñ se mantiene).
     // No hace falta agregar plurales ("putas", "cabrones"), ni versiones
     // con letras repetidas ("puuuuta"): el filtro las detecta solo.

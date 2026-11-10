@@ -47,13 +47,6 @@ class RespuestaController
         return (int) $_SESSION['user_id'];
     }
 
-    /** Agrega "contenido_sensible" (true/false) a una respuesta. */
-    private function marcar(array $respuesta): array
-    {
-        $respuesta['contenido_sensible'] = FiltroContenido::esVulgar($respuesta['contenido'] ?? '');
-        return $respuesta;
-    }
-
     // Tras cualquier escritura: se descarta el feed cacheado (el listado
     // incluye el total de respuestas) y se avisa por RabbitMQ para que el
     // worker haga las tareas secundarias.
@@ -91,7 +84,12 @@ class RespuestaController
         }
 
         $respuestas = $this->model()->getByPublicacion($publicacionId);
-        $this->jsonResponse(200, array_map([$this, 'marcar'], $respuestas));
+        // Hasta que el worker la elimine, una respuesta con lenguaje indebido no se muestra.
+        $visibles = array_values(array_filter(
+            $respuestas,
+            fn (array $r): bool => !FiltroContenido::esVulgar($r['contenido'] ?? '')
+        ));
+        $this->jsonResponse(200, $visibles);
     }
 
     public function store(array $body): void
@@ -122,7 +120,7 @@ class RespuestaController
         $nueva = $this->model()->create($publicacionId, $userId, $contenido);
         $this->avisarAlAutor($publicacion, $userId, (int) $nueva['id']);
         $this->notificarCambio('respuesta.creada', $publicacionId, (int) $nueva['id'], $userId);
-        $this->jsonResponse(201, $this->marcar($nueva));
+        $this->jsonResponse(201, $nueva);
     }
 
     public function destroy(int $id): void

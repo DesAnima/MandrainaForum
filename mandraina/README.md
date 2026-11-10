@@ -183,12 +183,11 @@ revisar con `SHOW timezone;`.
 
 `includes/FiltroContenido.php` detecta lenguaje vulgar (español e
 inglés, incluyendo variantes con números/símbolos tipo "leet" y letras
-repetidas) en el título y contenido de una publicación.
-`PublicacionController` marca cada publicación con
-`contenido_sensible: true/false`, y el feed (`panel.php`) oculta el
-cuerpo de esas publicaciones detrás de un aviso con un botón para
-mostrarlas. Para sumar o sacar palabras, se edita la lista `PALABRAS`
-en ese archivo.
+repetidas) en el título y contenido de una publicación o respuesta.
+Con **un solo insulto** el worker la elimina (no hay cartel de precaución).
+Hasta que el worker procesa el evento, `Feed` y `RespuestaController::index`
+la ocultan de los listados. Para sumar o sacar palabras, se edita la lista
+`PALABRAS` en ese archivo.
 
 ## Stack tecnológico
 
@@ -274,7 +273,7 @@ respuesta), con un máximo de 500 caracteres y el mismo saneado de texto que
 las publicaciones (`includes/Texto.php`). El listado de publicaciones agrega
 `total_respuestas` a cada una. Cada alta o baja invalida la caché del feed y
 publica `respuesta.creada` / `respuesta.eliminada` en RabbitMQ; el worker
-registra en `moderacion_log` las respuestas con lenguaje vulgar. La tabla
+elimina y registra en `moderacion_log` las respuestas con lenguaje vulgar. La tabla
 `respuestas` se crea sola (ver también `migrations/004_respuestas.sql`).
 
 ### Tags
@@ -324,7 +323,7 @@ Cuando se crea, edita o elimina una publicación, la API publica un evento
 `mandraina.eventos`, que enruta a la cola durable `mandraina.publicaciones`.
 El proceso `worker/consumer.php` lo consume y:
 
-1. Modera por cantidad de insultos (`FiltroContenido::contarInsultos`): con 1 a 3 el contenido sigue visible con el cartel de precaución y se registra en `moderacion_log`; con 4 o más (`UMBRAL_ELIMINACION`) la publicación o respuesta se elimina y también queda registrada.
+1. Modera el lenguaje indebido (`FiltroContenido::contarInsultos`): si hay al menos un insulto, la publicación o respuesta se elimina y queda registrada en `moderacion_log`.
 2. Recalienta la caché del feed en Redis.
 
 Si un mensaje falla se reintenta una vez; después va a la cola
@@ -348,8 +347,7 @@ funcionando.
 
 **No molesta mientras usás la página.** El feed se actualiza tarjeta por
 tarjeta: solo se rehacen las que cambiaron. Se conserva la respuesta que estás
-escribiendo (con el foco), los hilos abiertos y el contenido sensible que ya
-revelaste. Las publicaciones que llegan en vivo brillan un instante.
+escribiendo (con el foco) y los hilos abiertos. Las publicaciones que llegan en vivo brillan un instante.
 
 **Por qué sondeo y no SSE/WebSockets.** Con Apache + PHP cada conexión abierta
 ocuparía un proceso mientras dure, y los proxies (Render incluido) suelen

@@ -1,6 +1,6 @@
 <?php
 // includes/Feed.php
-// Listado de publicaciones (con la marca "contenido_sensible"), paginado por
+// Listado de publicaciones (sin las que tienen lenguaje indebido), paginado por
 // cursor. Solo la primera página sin filtro (la que pide todo el que entra al
 // panel) se cachea en Redis; el resto va directo a PostgreSQL, que con los
 // índices responde rápido. La API invalida la caché al escribir y el worker la
@@ -13,17 +13,16 @@ require_once __DIR__ . '/TiempoReal.php';
 
 class Feed
 {
-    public const CLAVE = 'feed:v4:inicio'; // v4: primera página + paginación por cursor
+    public const CLAVE = 'feed:v5:inicio'; // v5: se ocultan publicaciones con lenguaje indebido
     public const PAGINA = 10; // publicaciones por página
     public const TTL = 60; // segundos; red de seguridad por si falla la invalidación
 
-    /** Agrega "contenido_sensible" (true/false) a una publicación. */
-    public static function marcar(array $publicacion): array
+    /** true si el título o el contenido tienen lenguaje indebido. */
+    public static function esIndebida(array $publicacion): bool
     {
-        $publicacion['contenido_sensible'] = FiltroContenido::esVulgar(
+        return FiltroContenido::esVulgar(
             ($publicacion['titulo'] ?? '') . ' ' . ($publicacion['contenido'] ?? '')
         );
-        return $publicacion;
     }
 
     /**
@@ -35,12 +34,17 @@ class Feed
     public static function construir(Publicacion $model, int $limite, ?int $antes = null, ?string $tag = null): array
     {
         [$filas, $hayMas] = $model->getPagina($limite, $antes, $tag);
-        $publicaciones = array_map([self::class, 'marcar'], $filas);
+
+        // Red de seguridad: hasta que el worker la elimine, una publicación con
+        // lenguaje indebido no se muestra. El cursor se calcula con las filas
+        // sin filtrar para que la paginación no se salte ni repita nada.
+        $siguiente = $filas ? (int) end($filas)['id'] : null;
+        $publicaciones = array_values(array_filter($filas, fn (array $p): bool => !self::esIndebida($p)));
 
         return [
             'publicaciones' => $publicaciones,
             'hay_mas' => $hayMas,
-            'siguiente' => $publicaciones ? (int) end($publicaciones)['id'] : null,
+            'siguiente' => $siguiente,
         ];
     }
 

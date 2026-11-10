@@ -271,7 +271,7 @@ class PublicacionController
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $id]);
         }
 
-        $this->jsonResponse(200, Feed::marcar($publicacion));
+        $this->jsonResponse(200, $publicacion);
     }
 
     public function store(array $body): void
@@ -297,11 +297,11 @@ class PublicacionController
         }
 
         if (!$creada) {
-            $this->jsonResponse(200, Feed::marcar($nueva)); // ya existía: no hay evento ni feed nuevo
+            $this->jsonResponse(200, $nueva); // ya existía: no hay evento ni feed nuevo
         }
 
         $this->notificarCambio('publicacion.creada', (int) $nueva['id'], $userId);
-        $this->jsonResponse(201, Feed::marcar($nueva));
+        $this->jsonResponse(201, $nueva);
     }
 
     public function update(int $id, array $body): void
@@ -322,7 +322,7 @@ class PublicacionController
 
         $actualizada = $this->model()->update($id, $titulo, $contenido, $tags);
         $this->notificarCambio('publicacion.editada', $id, $userId);
-        $this->jsonResponse(200, Feed::marcar($actualizada));
+        $this->jsonResponse(200, $actualizada);
     }
 
     public function destroy(int $id): void

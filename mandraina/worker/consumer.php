@@ -8,10 +8,9 @@
 // publicaciones y respuestas (creada / editada / eliminada) hace dos tareas secundarias
 // que no tienen por qué demorar la respuesta de la API:
 //
-//   1. Moderación: cuenta los insultos del texto (FiltroContenido). Con 1 a 3
-//      deja un registro en `moderacion_log` y el contenido sigue visible con
-//      el cartel de precaución; con 4 o más (UMBRAL_ELIMINACION) elimina la
-//      publicación o respuesta y deja el registro igual.
+//   1. Moderación: si el texto tiene lenguaje indebido (FiltroContenido, con
+//      un solo insulto alcanza) elimina la publicación o respuesta y deja el
+//      registro en `moderacion_log`.
 //   2. Recalienta la caché del feed en Redis, así el próximo GET ya sale de
 //      Redis en vez de ir a PostgreSQL.
 //
@@ -72,7 +71,6 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
 {
     $tipo = (string) ($evento['evento'] ?? '');
     $id = (int) ($evento['publicacion_id'] ?? 0);
-    $umbral = FiltroContenido::UMBRAL_ELIMINACION;
     $huboBorrados = false;
 
     if (in_array($tipo, ['publicacion.creada', 'publicacion.editada'], true) && $id > 0) {
@@ -81,14 +79,11 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
             ? FiltroContenido::contarInsultos($publicacion['titulo'] . ' ' . $publicacion['contenido'])
             : 0;
 
-        if ($insultos >= $umbral) {
+        if ($insultos > 0) {
             $modelo->delete($id);
             $huboBorrados = true;
-            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_insultos ({$insultos})");
-            logw("Moderación: publicación #{$id} ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
-        } elseif ($insultos > 0) {
-            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, 'lenguaje_vulgar');
-            logw("Moderación: publicación #{$id} marcada por lenguaje vulgar ({$insultos} insultos, {$tipo}).");
+            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_lenguaje_indebido ({$insultos})");
+            logw("Moderación: publicación #{$id} ELIMINADA por lenguaje indebido ({$insultos} insultos, {$tipo}).");
         }
     }
 
@@ -98,14 +93,11 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
         $insultos = $respuesta ? FiltroContenido::contarInsultos($respuesta['contenido']) : 0;
 
         // El registro queda asociado a la publicación a la que se respondió.
-        if ($insultos >= $umbral) {
+        if ($insultos > 0) {
             $respuestas->delete($rid);
             $huboBorrados = true;
-            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_insultos ({$insultos})");
-            logw("Moderación: respuesta #{$rid} (publicación #{$id}) ELIMINADA ({$insultos} insultos, umbral {$umbral}).");
-        } elseif ($insultos > 0) {
-            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, 'lenguaje_vulgar_en_respuesta');
-            logw("Moderación: respuesta #{$rid} (publicación #{$id}) marcada por lenguaje vulgar ({$insultos} insultos).");
+            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_lenguaje_indebido ({$insultos})");
+            logw("Moderación: respuesta #{$rid} (publicación #{$id}) ELIMINADA por lenguaje indebido ({$insultos} insultos).");
         }
     }
 
