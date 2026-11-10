@@ -7,9 +7,10 @@ require_once __DIR__ . '/../config/db.php';
 
 class Moderacion
 {
-    public const MENSAJE_PUBLICACION = 'Tu publicación contiene lenguaje indebido y no se publicó.';
-    public const MENSAJE_EDICION = 'Tu publicación contiene lenguaje indebido y fue eliminada.';
-    public const MENSAJE_RESPUESTA = 'Tu respuesta contiene lenguaje indebido y no se publicó.';
+    // Mensajes que ve el usuario (el panel los muestra en una alerta).
+    public const MENSAJE_PUBLICACION = 'No se puede utilizar lenguaje inapropiado.';
+    public const MENSAJE_EDICION = 'No se puede utilizar lenguaje inapropiado. Tu publicación fue eliminada.';
+    public const MENSAJE_RESPUESTA = 'No se puede utilizar lenguaje inapropiado.';
 
     public static function asegurarTabla(PDO $pdo): void
     {
