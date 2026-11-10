@@ -184,9 +184,13 @@ revisar con `SHOW timezone;`.
 `includes/FiltroContenido.php` detecta lenguaje vulgar (español e
 inglés, incluyendo variantes con números/símbolos tipo "leet" y letras
 repetidas) en el título y contenido de una publicación o respuesta.
-Con **un solo insulto** el worker la elimina (no hay cartel de precaución).
-Hasta que el worker procesa el evento, `Feed` y `RespuestaController::index`
-la ocultan de los listados. Para sumar o sacar palabras, se edita la lista
+Con **un solo insulto** se censura en el momento, sin depender del worker
+(no hay cartel de precaución): `POST /publicaciones` y `POST /respuestas`
+responden `422` y no guardan nada; un `PUT` que agrega lenguaje indebido
+elimina la publicación. Todo queda en `moderacion_log`
+(`includes/Moderacion.php`). El worker revisa de nuevo como respaldo, y
+`Feed` y `RespuestaController::index` ocultan de los listados cualquier
+contenido viejo que todavía tenga lenguaje indebido. Para sumar o sacar palabras, se edita la lista
 `PALABRAS` en ese archivo.
 
 ## Stack tecnológico
@@ -323,7 +327,7 @@ Cuando se crea, edita o elimina una publicación, la API publica un evento
 `mandraina.eventos`, que enruta a la cola durable `mandraina.publicaciones`.
 El proceso `worker/consumer.php` lo consume y:
 
-1. Modera el lenguaje indebido (`FiltroContenido::contarInsultos`): si hay al menos un insulto, la publicación o respuesta se elimina y queda registrada en `moderacion_log`.
+1. Modera como respaldo (`FiltroContenido::contarInsultos`): la API ya censura en el momento, pero si algo se coló y tiene al menos un insulto, el worker elimina la publicación o respuesta y la registra en `moderacion_log`.
 2. Recalienta la caché del feed en Redis.
 
 Si un mensaje falla se reintenta una vez; después va a la cola

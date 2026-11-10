@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/RateLimiter.php';
 require_once __DIR__ . '/../includes/Texto.php';
 require_once __DIR__ . '/../includes/Tags.php';
 require_once __DIR__ . '/../includes/FiltroContenido.php';
+require_once __DIR__ . '/../includes/Moderacion.php';
 require_once __DIR__ . '/../includes/Admin.php';
 
 class PublicacionController
@@ -284,6 +285,14 @@ class PublicacionController
         }
 
         [$titulo, $contenido] = $this->validarCampos($body);
+
+        // Censura: una publicación con lenguaje indebido directamente no se guarda.
+        $insultos = FiltroContenido::contarInsultos($titulo . ' ' . $contenido);
+        if ($insultos > 0) {
+            Moderacion::intentarRegistrar(0, $userId, 'publicacion.creada', "rechazada_por_lenguaje_indebido ({$insultos})");
+            $this->jsonResponse(422, ['error' => Moderacion::MENSAJE_PUBLICACION]);
+        }
+
         $tags = $this->validarTags($body['tags'] ?? []);
 
         // Un solo envío a la vez por usuario (Redis), y sin duplicar: si llega
@@ -318,6 +327,16 @@ class PublicacionController
         }
 
         [$titulo, $contenido] = $this->validarCampos($body);
+
+        // Censura: si la edición agrega lenguaje indebido, la publicación se elimina.
+        $insultos = FiltroContenido::contarInsultos($titulo . ' ' . $contenido);
+        if ($insultos > 0) {
+            $this->model()->delete($id);
+            Moderacion::intentarRegistrar($id, $userId, 'publicacion.editada', "eliminada_por_lenguaje_indebido ({$insultos})");
+            $this->notificarCambio('publicacion.eliminada', $id, $userId);
+            $this->jsonResponse(200, ['eliminada' => true, 'mensaje' => Moderacion::MENSAJE_EDICION]);
+        }
+
         $tags = array_key_exists('tags', $body) ? $this->validarTags($body['tags']) : null;
 
         $actualizada = $this->model()->update($id, $titulo, $contenido, $tags);

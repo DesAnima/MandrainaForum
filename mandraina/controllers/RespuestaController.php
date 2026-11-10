@@ -8,6 +8,7 @@ require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/RateLimiter.php';
 require_once __DIR__ . '/../includes/Texto.php';
 require_once __DIR__ . '/../includes/FiltroContenido.php';
+require_once __DIR__ . '/../includes/Moderacion.php';
 require_once __DIR__ . '/../includes/Admin.php';
 
 class RespuestaController
@@ -115,6 +116,13 @@ class RespuestaController
         $publicacion = $this->publicaciones()->getById($publicacionId);
         if (!$publicacion) {
             $this->jsonResponse(404, ['error' => 'Publicación no encontrada', 'id' => $publicacionId]);
+        }
+
+        // Censura: una respuesta con lenguaje indebido directamente no se guarda.
+        $insultos = FiltroContenido::contarInsultos($contenido);
+        if ($insultos > 0) {
+            Moderacion::intentarRegistrar($publicacionId, $userId, 'respuesta.creada', "respuesta_rechazada_por_lenguaje_indebido ({$insultos})");
+            $this->jsonResponse(422, ['error' => Moderacion::MENSAJE_RESPUESTA]);
         }
 
         $nueva = $this->model()->create($publicacionId, $userId, $contenido);

@@ -1022,6 +1022,8 @@ require_once __DIR__ . '/includes/Admin.php';
                     return;
                 }
 
+                if (data.eliminada) alert(data.mensaje);
+
                 resetForm();
                 cargarPublicaciones();
                 cargarMisTags();

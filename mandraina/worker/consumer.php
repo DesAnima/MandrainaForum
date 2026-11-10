@@ -8,9 +8,9 @@
 // publicaciones y respuestas (creada / editada / eliminada) hace dos tareas secundarias
 // que no tienen por qué demorar la respuesta de la API:
 //
-//   1. Moderación: si el texto tiene lenguaje indebido (FiltroContenido, con
-//      un solo insulto alcanza) elimina la publicación o respuesta y deja el
-//      registro en `moderacion_log`.
+//   1. Moderación (respaldo): la API ya rechaza en el momento el contenido con
+//      lenguaje indebido; acá se revisa de nuevo (con un solo insulto alcanza)
+//      por si algo se coló, y se elimina dejando registro en `moderacion_log`.
 //   2. Recalienta la caché del feed en Redis, así el próximo GET ya sale de
 //      Redis en vez de ir a PostgreSQL.
 //
@@ -26,6 +26,7 @@ if (PHP_SAPI !== 'cli') {
 
 require_once __DIR__ . '/../includes/Cola.php';
 require_once __DIR__ . '/../includes/Feed.php';
+require_once __DIR__ . '/../includes/Moderacion.php';
 require_once __DIR__ . '/../models/Publicacion.php';
 require_once __DIR__ . '/../models/Respuesta.php';
 
@@ -35,36 +36,6 @@ use PhpAmqpLib\Message\AMQPMessage;
 function logw(string $mensaje): void
 {
     fwrite(STDOUT, '[' . date('Y-m-d H:i:s') . '] ' . $mensaje . PHP_EOL);
-}
-
-function asegurarTablaModeracion(PDO $pdo): void
-{
-    // Sin FK a propósito: el registro de moderación se conserva aunque
-    // la publicación se elimine después.
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS moderacion_log (
-            id SERIAL PRIMARY KEY,
-            publicacion_id INTEGER NOT NULL,
-            user_id INTEGER,
-            evento TEXT NOT NULL,
-            motivo TEXT NOT NULL,
-            creado_en TIMESTAMP NOT NULL DEFAULT NOW()
-        )
-    ");
-}
-
-function registrarModeracion(PDO $pdo, int $publicacionId, int $userId, string $evento, string $motivo): void
-{
-    $stmt = $pdo->prepare("
-        INSERT INTO moderacion_log (publicacion_id, user_id, evento, motivo)
-        VALUES (:pid, :uid, :evento, :motivo)
-    ");
-    $stmt->execute([
-        ':pid' => $publicacionId,
-        ':uid' => $userId,
-        ':evento' => $evento,
-        ':motivo' => $motivo,
-    ]);
 }
 
 function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuestas, PDO $pdo): void
@@ -82,7 +53,7 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
         if ($insultos > 0) {
             $modelo->delete($id);
             $huboBorrados = true;
-            registrarModeracion($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_lenguaje_indebido ({$insultos})");
+            Moderacion::registrar($pdo, $id, (int) $publicacion['user_id'], $tipo, "eliminada_por_lenguaje_indebido ({$insultos})");
             logw("Moderación: publicación #{$id} ELIMINADA por lenguaje indebido ({$insultos} insultos, {$tipo}).");
         }
     }
@@ -96,7 +67,7 @@ function procesarEvento(array $evento, Publicacion $modelo, Respuesta $respuesta
         if ($insultos > 0) {
             $respuestas->delete($rid);
             $huboBorrados = true;
-            registrarModeracion($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_lenguaje_indebido ({$insultos})");
+            Moderacion::registrar($pdo, $id, (int) $respuesta['user_id'], $tipo, "respuesta_eliminada_por_lenguaje_indebido ({$insultos})");
             logw("Moderación: respuesta #{$rid} (publicación #{$id}) ELIMINADA por lenguaje indebido ({$insultos} insultos).");
         }
     }
@@ -117,7 +88,7 @@ logw('Worker iniciado. Conectando a RabbitMQ...');
 while (true) {
     try {
         $pdo = getPDO();
-        asegurarTablaModeracion($pdo);
+        Moderacion::asegurarTabla($pdo);
         $modelo = new Publicacion();
         $respuestas = new Respuesta();
 
