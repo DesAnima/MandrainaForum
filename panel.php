@@ -1529,8 +1529,8 @@ require_once __DIR__ . '/includes/Admin.php';
         actualizarBarraSuperior();
 
         // ---- Mascota: cobayo que pasea por la barra superior ----
-        // Camina de un lado a otro, se detiene a ratos y salta al tocarlo
-        // (clic, toque en el celular o al pasarle el mouse por encima).
+        // Camina de un lado a otro, se detiene a ratos y da un mini salto al hacerle clic
+        // (o tocarlo en el celular).
         (function iniciarCobayo() {
             const pista = document.getElementById('cobayo-pista');
             const cobayo = document.getElementById('cobayo');
@@ -1538,7 +1538,6 @@ require_once __DIR__ . '/includes/Admin.php';
             const globo = document.getElementById('cobayo-globo');
             if (!pista || !cobayo || !cuerpo) return;
 
-            const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
             const VELOCIDAD = 38;            // px por segundo
             const MARGEN = 6;                // separación con los bordes de la barra
             let x = 40 + Math.random() * 200;
@@ -1569,14 +1568,14 @@ require_once __DIR__ . '/includes/Admin.php';
                 if (estado === 'saltando') return;
                 const previo = estado;
                 estado = 'saltando';
-                const alto = sinMovimiento ? 6 : 22;
+                const alto = 9; // mini salto
                 const anim = cuerpo.animate([
                     { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 0 },
-                    { transform: `scaleX(${dir}) translateY(0) scale(1.12, 0.82)`, offset: 0.15 },
-                    { transform: `scaleX(${dir}) translateY(-${alto}px) scale(0.92, 1.1)`, offset: 0.5 },
-                    { transform: `scaleX(${dir}) translateY(0) scale(1.12, 0.82)`, offset: 0.85 },
+                    { transform: `scaleX(${dir}) translateY(0) scale(1.06, 0.92)`, offset: 0.15 },
+                    { transform: `scaleX(${dir}) translateY(-${alto}px) scale(0.96, 1.05)`, offset: 0.5 },
+                    { transform: `scaleX(${dir}) translateY(0) scale(1.06, 0.92)`, offset: 0.85 },
                     { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 1 }
-                ], { duration: 520, easing: 'ease-in-out' });
+                ], { duration: 340, easing: 'ease-in-out' });
                 decirAlgo(['¡wiik!', '¡wiik wiik!', '¡Mandraina!'][Math.floor(Math.random() * 3)]);
                 anim.onfinish = anim.oncancel = () => {
                     estado = previo === 'saltando' ? 'quieto' : previo;
@@ -1585,21 +1584,12 @@ require_once __DIR__ . '/includes/Admin.php';
             }
 
             cobayo.addEventListener('click', saltar);
-            // Pasar el mouse por encima también lo asusta (con pausa para que no se vuelva molesto).
-            let ultimoHover = 0;
-            cobayo.addEventListener('pointerenter', (e) => {
-                if (e.pointerType !== 'mouse') return;
-                const ahora = performance.now();
-                if (ahora - ultimoHover < 1500) return;
-                ultimoHover = ahora;
-                saltar();
-            });
 
             function paso(ahora) {
                 const dt = Math.min(0.05, (ahora - ultimo) / 1000);
                 ultimo = ahora;
 
-                if (!sinMovimiento && estado !== 'saltando') {
+                if (estado !== 'saltando') {
                     if (estado === 'caminar') {
                         x += dir * VELOCIDAD * dt;
                         const max = limite();
@@ -1618,8 +1608,6 @@ require_once __DIR__ . '/includes/Admin.php';
                         if (Math.random() < 0.4) dir = -dir;
                         hasta = ahora + 3000 + Math.random() * 5000;
                     }
-                } else if (estado !== 'saltando') {
-                    cuerpo.style.transform = `scaleX(${dir})`;
                 }
 
                 x = Math.min(Math.max(MARGEN, x), limite());
