@@ -1253,6 +1253,9 @@ html {
     pointer-events: auto;
     will-change: transform;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation; /* toques rápidos seguidos no hacen zoom */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .cobayo:focus-visible {

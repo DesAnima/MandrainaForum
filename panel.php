@@ -1529,95 +1529,146 @@ require_once __DIR__ . '/includes/Admin.php';
         actualizarBarraSuperior();
 
         // ---- Mascota: cobayo que pasea por la barra superior ----
-        // Camina de un lado a otro, se detiene a ratos y da un mini salto al hacerle clic
-        // (o tocarlo en el celular).
+        // Camina de un lado a otro y se detiene a ratos. Al hacerle clic (o tocarlo
+        // en el celular) salta como una pelota: si se estaba moviendo, el salto
+        // avanza en su dirección, y si se le hace clic en el aire vuelve a impulsarse,
+        // así que con clics seguidos se mantiene rebotando. Al caer da un par de
+        // rebotes chiquitos y sigue caminando.
         (function iniciarCobayo() {
             const pista = document.getElementById('cobayo-pista');
             const cobayo = document.getElementById('cobayo');
             const cuerpo = document.getElementById('cobayo-cuerpo');
             const globo = document.getElementById('cobayo-globo');
             if (!pista || !cobayo || !cuerpo) return;
+            const cabecera = pista.parentElement;
 
-            const VELOCIDAD = 38;            // px por segundo
-            const MARGEN = 6;                // separación con los bordes de la barra
+            const MARGEN = 6;          // separación con los bordes de la barra
+            const GRAVEDAD = 900;      // px/s²
+            const IMPULSO = 150;       // px/s hacia arriba en cada salto (~12 px de altura)
+            const REBOTE = 0.42;       // fracción de velocidad que conserva al rebotar
+            const REBOTE_MIN = 50;     // por debajo de esta velocidad de impacto ya no rebota
+
             let x = 40 + Math.random() * 200;
+            let y = 0;                 // altura sobre el piso de la barra
+            let vx = 0;
+            let vy = 0;
             let dir = Math.random() < 0.5 ? 1 : -1;
-            let estado = 'caminar';          // caminar | quieto | saltando
+            let estado = 'caminar';    // caminar | quieto | aire
+            let previo = 'caminar';    // qué hacía antes de saltar
             let hasta = performance.now() + 2000 + Math.random() * 3000;
             let ultimo = performance.now();
-            let globoTimer = null;
             let fase = 0;
+            let aplastar = 0;          // segundos que le quedan al "aplastón" al caer
+            let globoTimer = null;
 
-            function ancho() { return pista.clientWidth; }
-            function limite() { return Math.max(MARGEN, ancho() - cobayo.offsetWidth - MARGEN); }
+            const ancho = () => pista.clientWidth;
+            const limite = () => Math.max(MARGEN, ancho() - cobayo.offsetWidth - MARGEN);
+            // La velocidad crece con el ancho de la barra: en una PC grande no se ve "clavado".
+            const velocidad = () => Math.min(140, Math.max(50, ancho() * 0.06));
+            // Tope de altura: que no se salga por arriba de la barra.
+            const alturaMax = () => Math.max(16, cabecera.clientHeight - 3 - cobayo.offsetHeight - 4);
 
-            function pintar() {
-                cobayo.style.transform = `translateX(${x.toFixed(1)}px)`;
-                cuerpo.style.setProperty('--dir', dir);
-            }
-
-            function decirAlgo(texto) {
+            function decirAlgo() {
                 if (!globo) return;
-                globo.textContent = texto;
+                globo.textContent = ['¡wiik!', '¡wiik wiik!', '¡Mandraina!'][Math.floor(Math.random() * 3)];
                 globo.classList.add('visible');
                 clearTimeout(globoTimer);
-                globoTimer = setTimeout(() => globo.classList.remove('visible'), 900);
+                globoTimer = setTimeout(() => globo.classList.remove('visible'), 800);
             }
 
             function saltar() {
-                if (estado === 'saltando') return;
-                const previo = estado;
-                estado = 'saltando';
-                const alto = 9; // mini salto
-                const anim = cuerpo.animate([
-                    { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 0 },
-                    { transform: `scaleX(${dir}) translateY(0) scale(1.06, 0.92)`, offset: 0.15 },
-                    { transform: `scaleX(${dir}) translateY(-${alto}px) scale(0.96, 1.05)`, offset: 0.5 },
-                    { transform: `scaleX(${dir}) translateY(0) scale(1.06, 0.92)`, offset: 0.85 },
-                    { transform: `scaleX(${dir}) translateY(0) scale(1, 1)`, offset: 1 }
-                ], { duration: 340, easing: 'ease-in-out' });
-                decirAlgo(['¡wiik!', '¡wiik wiik!', '¡Mandraina!'][Math.floor(Math.random() * 3)]);
-                anim.onfinish = anim.oncancel = () => {
-                    estado = previo === 'saltando' ? 'quieto' : previo;
-                    hasta = performance.now() + 600 + Math.random() * 1200;
-                };
+                if (estado !== 'aire') {
+                    previo = estado;
+                    // Si venía caminando, salta hacia donde iba; si estaba parado, salta en el lugar.
+                    vx = estado === 'caminar' ? dir * Math.max(velocidad() * 2, 90) : 0;
+                    estado = 'aire';
+                }
+                vy = IMPULSO;           // también funciona en el aire: nuevo impulso
+                aplastar = 0;
+                decirAlgo();
             }
 
-            cobayo.addEventListener('click', saltar);
+            function aterrizar(ahora) {
+                vx = 0;
+                vy = 0;
+                aplastar = 0.1;
+                if (previo === 'caminar') {
+                    estado = 'caminar';
+                    hasta = ahora + 1500 + Math.random() * 3000;
+                } else {
+                    estado = 'quieto';
+                    hasta = ahora + 800 + Math.random() * 1200;
+                }
+            }
 
-            function paso(ahora) {
+            // pointerdown (y no click) para que responda al instante, incluso con clics
+            // rápidos mientras está en el aire. El click con detail 0 es el teclado (Enter/Espacio).
+            cobayo.addEventListener('pointerdown', (e) => {
+                if (e.button > 0) return;
+                e.preventDefault();
+                saltar();
+            });
+            cobayo.addEventListener('click', (e) => { if (e.detail === 0) saltar(); });
+
+            function paso() {
+                const ahora = performance.now();
                 const dt = Math.min(0.05, (ahora - ultimo) / 1000);
                 ultimo = ahora;
+                let bob = 0, giro = 0, sx = 1, sy = 1;
 
-                if (estado !== 'saltando') {
-                    if (estado === 'caminar') {
-                        x += dir * VELOCIDAD * dt;
-                        const max = limite();
-                        if (x <= MARGEN) { x = MARGEN; dir = 1; }
-                        else if (x >= max) { x = max; dir = -1; }
-                        // Balanceo al caminar
-                        fase += dt * 11;
-                        cuerpo.style.transform = `scaleX(${dir}) translateY(${(-Math.abs(Math.sin(fase)) * 2.2).toFixed(2)}px) rotate(${(Math.sin(fase) * 5).toFixed(1)}deg)`;
-                        if (ahora > hasta) {
-                            estado = 'quieto';
-                            hasta = ahora + 1200 + Math.random() * 2500;
-                            cuerpo.style.transform = `scaleX(${dir})`;
-                        }
-                    } else if (ahora > hasta) {
+                if (estado === 'caminar') {
+                    x += dir * velocidad() * dt;
+                    fase += dt * 11;
+                    bob = Math.abs(Math.sin(fase)) * 2.2;   // balanceo al caminar
+                    giro = Math.sin(fase) * 5;
+                    if (ahora > hasta) {
+                        estado = 'quieto';
+                        hasta = ahora + 1200 + Math.random() * 2500;
+                    }
+                } else if (estado === 'quieto') {
+                    if (ahora > hasta) {
                         estado = 'caminar';
                         if (Math.random() < 0.4) dir = -dir;
                         hasta = ahora + 3000 + Math.random() * 5000;
                     }
+                } else { // aire
+                    x += vx * dt;
+                    vy -= GRAVEDAD * dt;
+                    y += vy * dt;
+                    const tope = alturaMax();
+                    if (y > tope) { y = tope; if (vy > 0) vy = 0; }
+                    if (vx !== 0) dir = vx > 0 ? 1 : -1;
+                    giro = Math.max(-1, Math.min(1, vy / IMPULSO)) * 8;     // se inclina al subir/bajar
+                    const estira = Math.min(0.12, Math.abs(vy) / 1800);
+                    sx = 1 - estira * 0.6;
+                    sy = 1 + estira;
+                    if (y <= 0) {
+                        y = 0;
+                        const impacto = -vy;
+                        if (impacto > REBOTE_MIN) {          // rebota como una pelota
+                            vy = impacto * REBOTE;
+                            vx *= 0.7;
+                            aplastar = 0.12;
+                        } else {
+                            aterrizar(ahora);
+                        }
+                    }
                 }
 
-                x = Math.min(Math.max(MARGEN, x), limite());
-                pintar();
+                // Paredes de la barra: rebota y se da vuelta.
+                const max = limite();
+                if (x <= MARGEN) { x = MARGEN; dir = 1; if (vx < 0) vx = -vx; }
+                else if (x >= max) { x = max; dir = -1; if (vx > 0) vx = -vx; }
+
+                if (aplastar > 0) { sx = 1.1; sy = 0.9; aplastar -= dt; }
+
+                cobayo.style.transform = `translate(${x.toFixed(1)}px, ${(-y).toFixed(1)}px)`;
+                cuerpo.style.transform = `translateY(${(-bob).toFixed(2)}px) scaleX(${dir}) rotate(${giro.toFixed(1)}deg) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
                 requestAnimationFrame(paso);
             }
 
-            window.addEventListener('resize', () => { x = Math.min(x, limite()); pintar(); });
-            pintar();
-            requestAnimationFrame((t) => { ultimo = t; paso(t); });
+            window.addEventListener('resize', () => { x = Math.min(x, limite()); });
+            requestAnimationFrame(paso);
         })();
 
         window.addEventListener('scroll', actualizarBtnSubir, { passive: true });
