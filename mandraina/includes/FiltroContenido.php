@@ -23,6 +23,8 @@ class FiltroContenido
         'garcha', 'garchar', 'garche', 'ortiva', 'ortiba',
         'pajero', 'gilipollas', 'gilipolla', 'cabron', 'cabrona', 'coño', 'joder', 'jodete',
         'malparido', 'malparida', 'maricon', 'marica', 'trolo',
+        'idiota', 'imbecil', 'estupido', 'estupida', 'tarado', 'tarada',
+        'mogolico', 'mogolica', 'cornudo', 'sorete', 'chupala',
         // Inglés
         'fuck', 'fucker', 'fucking', 'fucked', 'motherfucker',
         'shit', 'bullshit', 'bitch', 'asshole', 'ass', 'cunt',
@@ -46,21 +48,38 @@ class FiltroContenido
 
     public static function esVulgar(string $texto): bool
     {
-        if (trim($texto) === '') {
-            return false;
-        }
-
-        return preg_match(self::patron(), self::normalizar($texto)) === 1;
+        return self::contarInsultos($texto) > 0;
     }
 
     /** Cantidad de insultos del texto; cada aparición cuenta, aunque se repita. */
     public static function contarInsultos(string $texto): int
     {
+        return count(self::encontrar($texto));
+    }
+
+    /**
+     * Las palabras indebidas que aparecen en el texto (con repeticiones).
+     *
+     * Si la expresión regular falla (texto con UTF-8 inválido, límite de
+     * backtracking...) preg_match_all devuelve false. Eso NO se toma como "sin
+     * insultos": se deja el error en el log y se censura por las dudas, así un
+     * fallo del filtro se nota enseguida en vez de dejar pasar todo en silencio.
+     *
+     * @return string[]
+     */
+    public static function encontrar(string $texto): array
+    {
         if (trim($texto) === '') {
-            return 0;
+            return [];
         }
 
-        return (int) preg_match_all(self::patron(), self::normalizar($texto));
+        $cantidad = preg_match_all(self::patron(), self::normalizar($texto), $coincidencias);
+        if ($cantidad === false) {
+            error_log('[filtro] error en la expresión regular: ' . preg_last_error_msg());
+            return ['<error del filtro>'];
+        }
+
+        return $coincidencias[0];
     }
 
     private static function normalizar(string $texto): string

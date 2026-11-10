@@ -45,6 +45,9 @@ class Moderacion
     /** Igual que registrar(), pero un fallo del registro nunca corta la respuesta de la API. */
     public static function intentarRegistrar(int $publicacionId, int $userId, string $evento, string $motivo): void
     {
+        // También al log del servidor (docker compose logs web): sirve para ver si la censura actúa.
+        error_log("[censura] {$evento} usuario #{$userId}: {$motivo}");
+
         try {
             $pdo = getPDO();
             self::asegurarTabla($pdo);

@@ -190,7 +190,13 @@ responden `422` y no guardan nada; un `PUT` que agrega lenguaje indebido
 elimina la publicación. Todo queda en `moderacion_log`
 (`includes/Moderacion.php`). El worker revisa de nuevo como respaldo, y
 `Feed` y `RespuestaController::index` ocultan de los listados cualquier
-contenido viejo que todavía tenga lenguaje indebido. Para sumar o sacar palabras, se edita la lista
+contenido viejo que todavía tenga lenguaje indebido.
+
+Para comprobar la censura: `docker compose exec web php bin/probar_filtro.php "texto"`
+dice si el texto se censura y si el código desplegado ya trae los cambios.
+Ojo: en docker-compose el código va **dentro de la imagen**, así que después de
+cambiarlo hay que correr `docker compose up --build` (y en Render, volver a
+desplegar). Cada censura también queda en el log del servidor con el prefijo `[censura]`. Para sumar o sacar palabras, se edita la lista
 `PALABRAS` en ese archivo.
 
 ## Stack tecnológico
